@@ -1,25 +1,26 @@
 #pragma once
 
 #include "leschat/node_identity.hpp"
+#include "leschat/peer_registry.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <string>
-#include <vector>
 
 struct event_base;
-struct evhttp;
-struct evhttp_request;
 
 namespace leschat {
 
-struct ChatMessage {
-    std::uint64_t sequence;
-    std::string message_id;
-    std::string origin;
-    std::string callsign;
-    std::string channel;
-    std::int64_t created_at_ms;
-    std::string body;
+class DiscoveryService;
+class EventStream;
+class HttpApi;
+class MessageService;
+class MessageStore;
+class ReplicationService;
+class SyncService;
+
+struct EventBaseDeleter {
+    void operator()(event_base* base) const noexcept;
 };
 
 class Application {
@@ -27,9 +28,11 @@ public:
     Application(
         NodeIdentity identity,
         std::string bind_address,
-        std::uint16_t port
+        std::uint16_t port,
+        std::string discovery_address,
+        std::uint16_t discovery_port,
+        std::string database_path
     );
-
     ~Application();
 
     Application(const Application&) = delete;
@@ -40,24 +43,18 @@ public:
     void run();
 
 private:
-    static void handle_request(
-        evhttp_request* request,
-        void* context
-    );
-
-    void process_request(evhttp_request* request);
-    void get_messages(evhttp_request* request);
-    void create_message(evhttp_request* request);
-
     NodeIdentity identity_;
     std::string bind_address_;
     std::uint16_t port_;
-
-    std::vector<ChatMessage> messages_;
-    std::uint64_t next_sequence_{1};
-
-    event_base* event_base_{nullptr};
-    evhttp* http_server_{nullptr};
+    std::unique_ptr<event_base, EventBaseDeleter> event_base_;
+    PeerRegistry peer_registry_;
+    std::unique_ptr<MessageStore> message_store_;
+    std::unique_ptr<DiscoveryService> discovery_service_;
+    std::unique_ptr<ReplicationService> replication_service_;
+    std::unique_ptr<SyncService> sync_service_;
+    std::unique_ptr<EventStream> event_stream_;
+    std::unique_ptr<MessageService> message_service_;
+    std::unique_ptr<HttpApi> http_api_;
 };
 
 }  // namespace leschat

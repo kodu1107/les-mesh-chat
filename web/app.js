@@ -11,6 +11,8 @@ const elements = {
         document.querySelector("#node-address"),
     version:
         document.querySelector("#service-version"),
+    peerList:
+        document.querySelector("#peer-list"),
     messageList:
         document.querySelector("#message-list"),
     messageForm:
@@ -26,6 +28,7 @@ const elements = {
 let localNodeId = "";
 let composing = false;
 let sending = false;
+let eventStream = null;
 
 function setConnectionState(state, text) {
     elements.serviceStatus.className =
@@ -129,6 +132,58 @@ function renderMessages(messages) {
         elements.messageList.scrollHeight;
 }
 
+function appendMessage(message) {
+    if (elements.messageList.querySelector(
+        `[data-message-id="${CSS.escape(message.id)}"]`
+    )) {
+        return;
+    }
+
+    const empty = elements.messageList.querySelector(
+        ".empty-message"
+    );
+    if (empty) {
+        empty.remove();
+    }
+    elements.messageList.append(
+        createMessageElement(message)
+    );
+    elements.messageList.scrollTop =
+        elements.messageList.scrollHeight;
+}
+
+function connectEventStream() {
+    if (eventStream) {
+        eventStream.close();
+    }
+
+    eventStream = new EventSource("/api/v1/events");
+    eventStream.addEventListener(
+        "message",
+        (event) => {
+            try {
+                appendMessage(JSON.parse(event.data));
+            } catch (error) {
+                console.error(
+                    "Invalid message event:",
+                    error
+                );
+            }
+        }
+    );
+    eventStream.addEventListener(
+        "open",
+        () => setConnectionState("online", "ONLINE")
+    );
+    eventStream.addEventListener(
+        "error",
+        () => setConnectionState(
+            "offline",
+            "RECONNECTING"
+        )
+    );
+}
+
 async function refreshStatus() {
     try {
         const response = await fetch(
@@ -216,6 +271,45 @@ async function refreshMessages() {
     }
 }
 
+async function refreshPeers() {
+    try {
+        const response = await fetch("/api/v1/peers", {
+            cache: "no-store",
+            headers: {"Accept": "application/json"}
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const result = await response.json();
+        if (!Array.isArray(result.peers)) {
+            throw new Error("Invalid peers response");
+        }
+
+        const fragment = document.createDocumentFragment();
+        if (result.peers.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty-peer";
+            empty.textContent = "온라인 피어가 없습니다";
+            fragment.append(empty);
+        } else {
+            for (const peer of result.peers) {
+                const item = document.createElement("div");
+                item.className = "peer";
+                const name = document.createElement("strong");
+                name.textContent = peer.callsign;
+                const address = document.createElement("span");
+                address.textContent =
+                    `${peer.address}:${peer.http_port}`;
+                item.append(name, address);
+                fragment.append(item);
+            }
+        }
+        elements.peerList.replaceChildren(fragment);
+    } catch (error) {
+        console.error("Unable to refresh peers:", error);
+    }
+}
+
 async function sendMessage(body) {
     const response = await fetch(
         "/api/v1/messages",
@@ -265,12 +359,12 @@ elements.messageForm.addEventListener(
         setComposerStatus("전송 중...");
 
         try {
-            await sendMessage(body);
+            const message = await sendMessage(body);
+            appendMessage(message);
 
             elements.messageInput.value = "";
             setComposerStatus("전송 완료");
 
-            await refreshMessages();
         } catch (error) {
             console.error(
                 "Unable to send message:",
@@ -320,6 +414,8 @@ elements.messageInput.addEventListener(
 
 refreshStatus();
 refreshMessages();
+refreshPeers();
+connectEventStream();
 
 window.setInterval(refreshStatus, 5000);
-window.setInterval(refreshMessages, 2000);
+window.setInterval(refreshPeers, 5000);

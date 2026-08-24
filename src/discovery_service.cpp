@@ -1,0 +1,242 @@
+#include "leschat/discovery_service.hpp"
+
+#include "leschat/clock.hpp"
+#include "leschat/json.hpp"
+#include "leschat/peer.hpp"
+#include "leschat/peer_registry.hpp"
+#include "leschat/protocol.hpp"
+
+#include <arpa/inet.h>
+#include <event2/event.h>
+#include <event2/util.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <array>
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+
+namespace leschat {
+
+DiscoveryService::DiscoveryService(
+    event_base* event_base,
+    PeerRegistry& registry,
+    NodeIdentity identity,
+    std::uint16_t http_port,
+    std::string discovery_address,
+    std::uint16_t discovery_port
+)
+    : registry_(registry),
+      identity_(std::move(identity)),
+      http_port_(http_port),
+      discovery_address_(std::move(discovery_address)),
+      discovery_port_(discovery_port) {
+    try {
+        socket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (socket_ < 0) {
+            throw std::runtime_error("Failed to create discovery socket");
+        }
+
+        const int enabled = 1;
+        if (setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+                       &enabled, sizeof(enabled)) != 0 ||
+            setsockopt(socket_, SOL_SOCKET, SO_BROADCAST,
+                       &enabled, sizeof(enabled)) != 0 ||
+            evutil_make_socket_nonblocking(socket_) != 0) {
+            throw std::runtime_error("Failed to configure discovery socket");
+        }
+
+        sockaddr_in bind_address{};
+        bind_address.sin_family = AF_INET;
+        bind_address.sin_addr.s_addr = htonl(INADDR_ANY);
+        bind_address.sin_port = htons(discovery_port_);
+        if (bind(socket_, reinterpret_cast<sockaddr*>(&bind_address),
+                 sizeof(bind_address)) != 0) {
+            throw std::runtime_error("Failed to bind discovery UDP port " +
+                                     std::to_string(discovery_port_));
+        }
+
+        in_addr parsed_address{};
+        if (inet_pton(AF_INET, discovery_address_.c_str(),
+                      &parsed_address) != 1) {
+            throw std::runtime_error("Invalid discovery IPv4 address: " +
+                                     discovery_address_);
+        }
+
+        receive_event_ = event_new(
+            event_base, socket_, EV_READ | EV_PERSIST,
+            &DiscoveryService::receive_callback, this
+        );
+        announce_event_ = event_new(
+            event_base, -1, EV_PERSIST,
+            &DiscoveryService::announce_callback, this
+        );
+        if (receive_event_ == nullptr || announce_event_ == nullptr) {
+            throw std::runtime_error("Failed to create discovery events");
+        }
+
+        const timeval interval{5, 0};
+        if (event_add(receive_event_, nullptr) != 0 ||
+            event_add(announce_event_, &interval) != 0) {
+            throw std::runtime_error("Failed to activate discovery events");
+        }
+        send_announce();
+    } catch (...) {
+        close_resources();
+        throw;
+    }
+}
+
+DiscoveryService::~DiscoveryService() {
+    close_resources();
+}
+
+void DiscoveryService::close_resources() noexcept {
+    if (announce_event_ != nullptr) {
+        event_free(announce_event_);
+        announce_event_ = nullptr;
+    }
+    if (receive_event_ != nullptr) {
+        event_free(receive_event_);
+        receive_event_ = nullptr;
+    }
+    if (socket_ >= 0) {
+        close(socket_);
+        socket_ = -1;
+    }
+}
+
+void DiscoveryService::receive_callback(
+    int, short, void* context
+) noexcept {
+    try {
+        static_cast<DiscoveryService*>(context)->receive_announcements();
+    } catch (const std::exception& error) {
+        std::cerr << "Discovery receive error: " << error.what() << '\n';
+    }
+}
+
+void DiscoveryService::announce_callback(
+    int, short, void* context
+) noexcept {
+    try {
+        static_cast<DiscoveryService*>(context)->send_announce();
+    } catch (const std::exception& error) {
+        std::cerr << "Discovery announce error: " << error.what() << '\n';
+    }
+}
+
+void DiscoveryService::receive_announcements() {
+    std::array<char, max_datagram_bytes + 1U> buffer{};
+
+    for (;;) {
+        sockaddr_in sender{};
+        socklen_t sender_length = sizeof(sender);
+        const ssize_t received = recvfrom(
+            socket_, buffer.data(), buffer.size(), 0,
+            reinterpret_cast<sockaddr*>(&sender), &sender_length
+        );
+        if (received < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                return;
+            }
+            throw std::runtime_error(
+                std::string{"recvfrom failed: "} + std::strerror(errno)
+            );
+        }
+        if (static_cast<std::size_t>(received) > max_datagram_bytes) {
+            continue;
+        }
+
+        JsonParse parsed = parse_json(
+            std::string_view{buffer.data(), static_cast<std::size_t>(received)}
+        );
+        if (parsed.error != json_tokener_success ||
+            parsed.parse_end != static_cast<std::size_t>(received) ||
+            !json_is_object(parsed.object.get())) {
+            continue;
+        }
+
+        json_object* protocol = nullptr;
+        json_object* port = nullptr;
+        std::string type;
+        Peer peer{};
+        if (!json_object_object_get_ex(parsed.object.get(), "protocol",
+                                       &protocol) ||
+            !json_object_is_type(protocol, json_type_int) ||
+            json_object_get_int(protocol) != protocol_version ||
+            !json_get_string(parsed.object.get(), "type", type) ||
+            type != "announce" ||
+            !json_get_string(parsed.object.get(), "node_id", peer.node_id) ||
+            peer.node_id.empty() ||
+            !json_get_string(parsed.object.get(), "callsign", peer.callsign) ||
+            !json_get_string(
+                parsed.object.get(), "app_version", peer.app_version
+            ) ||
+            !json_object_object_get_ex(
+                parsed.object.get(), "http_port", &port
+            ) ||
+            !json_object_is_type(port, json_type_int)) {
+            continue;
+        }
+        const std::int64_t port_value = json_object_get_int64(port);
+        if (port_value < 1 || port_value > 65535 ||
+            peer.node_id == identity_.node_id) {
+            continue;
+        }
+
+        std::array<char, INET_ADDRSTRLEN> address_text{};
+        if (inet_ntop(AF_INET, &sender.sin_addr, address_text.data(),
+                      address_text.size()) == nullptr) {
+            continue;
+        }
+        peer.address = address_text.data();
+        peer.http_port = static_cast<std::uint16_t>(port_value);
+        peer.last_seen_ms = current_time_ms();
+        registry_.update(std::move(peer));
+    }
+}
+
+void DiscoveryService::send_announce() {
+    JsonPtr root = make_json_object();
+    json_object_object_add(root.get(), "protocol",
+                           json_object_new_int(protocol_version));
+    json_object_object_add(root.get(), "type",
+                           json_object_new_string("announce"));
+    json_object_object_add(root.get(), "node_id",
+                           json_object_new_string(identity_.node_id.c_str()));
+    json_object_object_add(root.get(), "callsign",
+                           json_object_new_string(identity_.callsign.c_str()));
+    json_object_object_add(root.get(), "http_port",
+                           json_object_new_int(static_cast<int>(http_port_)));
+    json_object_object_add(root.get(), "app_version",
+                           json_object_new_string(app_version));
+
+    const std::string payload = serialize_json(root.get());
+
+    sockaddr_in destination{};
+    destination.sin_family = AF_INET;
+    destination.sin_port = htons(discovery_port_);
+    if (inet_pton(AF_INET, discovery_address_.c_str(),
+                  &destination.sin_addr) != 1) {
+        throw std::runtime_error("Invalid discovery IPv4 address");
+    }
+    const ssize_t sent = sendto(
+        socket_, payload.data(), payload.size(), 0,
+        reinterpret_cast<sockaddr*>(&destination), sizeof(destination)
+    );
+    if (sent < 0 || static_cast<std::size_t>(sent) != payload.size()) {
+        throw std::runtime_error(
+            std::string{"sendto failed: "} + std::strerror(errno)
+        );
+    }
+}
+
+}  // namespace leschat

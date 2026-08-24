@@ -112,6 +112,7 @@ h2 {
 .layout {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
+    height: calc(100vh - 150px);
     min-height: 620px;
     margin-top: 16px;
     border: 1px solid var(--border);
@@ -153,10 +154,35 @@ h2 {
     text-align: center;
 }
 
+.peer {
+    display: grid;
+    gap: 5px;
+    padding: 12px;
+    border: 1px solid var(--border);
+}
+
+.peer + .peer {
+    margin-top: 8px;
+}
+
+.peer strong {
+    color: var(--success);
+    font-size: 0.88rem;
+}
+
+.peer span {
+    color: var(--muted);
+    font-family: monospace;
+    font-size: 0.76rem;
+    overflow-wrap: anywhere;
+}
+
 .chat {
     display: grid;
     grid-template-rows: auto 1fr auto;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .channel-header {
@@ -178,13 +204,17 @@ h2 {
 }
 
 .messages {
-    display: grid;
-    place-items: center;
-    min-height: 430px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
     padding: 24px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .empty-message {
+    margin: auto;
     max-width: 420px;
     color: var(--muted);
     text-align: center;
@@ -255,6 +285,7 @@ h2 {
 
     .layout {
         grid-template-columns: 1fr;
+        height: auto;
     }
 
     .sidebar {
@@ -263,6 +294,7 @@ h2 {
     }
 
     .messages {
+        height: min(55vh, 520px);
         min-height: 340px;
     }
 }
@@ -274,14 +306,14 @@ h2 {
 }
 
 .message + .message {
-    margin-top: 10px;
+    margin-top: 0;
 }
 
 .message-header {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 16px;
+    justify-content: flex-start;
+    gap: 8px;
     margin-bottom: 7px;
 }
 

@@ -26,6 +26,14 @@ void print_help(const char* program) {
         << "                    Default: 127.0.0.1\n"
         << "  --port PORT       TCP port\n"
         << "                    Default: 7777\n"
+        << "  --discovery-address ADDRESS\n"
+        << "                    UDP announce destination\n"
+        << "                    Default: 255.255.255.255\n"
+        << "  --discovery-port PORT\n"
+        << "                    UDP discovery port\n"
+        << "                    Default: 7777\n"
+        << "  --database PATH  SQLite message database\n"
+        << "                    Default: les-chat-<node-id>.db\n"
         << "  --help            Show this help\n";
 }
 
@@ -102,6 +110,9 @@ int main(int argc, char* argv[]) {
     std::string callsign{"Local"};
     std::string bind_address{"127.0.0.1"};
     std::uint16_t port{7777};
+    std::string discovery_address{"255.255.255.255"};
+    std::uint16_t discovery_port{7777};
+    std::string database_path;
 
     try {
         for (int index = 1; index < argc; ++index) {
@@ -154,6 +165,27 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
+            if (argument == "--discovery-address") {
+                discovery_address = read_argument_value(
+                    index, argc, argv, argument
+                );
+                continue;
+            }
+
+            if (argument == "--discovery-port") {
+                discovery_port = parse_port(read_argument_value(
+                    index, argc, argv, argument
+                ));
+                continue;
+            }
+
+            if (argument == "--database") {
+                database_path = read_argument_value(
+                    index, argc, argv, argument
+                );
+                continue;
+            }
+
             throw std::runtime_error(
                 "Unknown argument: " + argument
             );
@@ -168,13 +200,20 @@ int main(int argc, char* argv[]) {
 
         validate_callsign(callsign);
 
+        if (database_path.empty()) {
+            database_path = "les-chat-" + node_id + ".db";
+        }
+
         leschat::Application application{
             leschat::NodeIdentity{
                 std::move(node_id),
                 std::move(callsign)
             },
             std::move(bind_address),
-            port
+            port,
+            std::move(discovery_address),
+            discovery_port,
+            std::move(database_path)
         };
 
         application.run();
