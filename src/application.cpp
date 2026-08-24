@@ -11,6 +11,12 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <fstream>
+#include <sstream>
+
+#ifndef LESCHAT_WEB_ROOT
+#define LESCHAT_WEB_ROOT "web"
+#endif
 
 namespace leschat {
 
@@ -24,15 +30,9 @@ struct JsonObjectDeleter {
     }
 };
 
-using JsonObjectPtr =
-    std::unique_ptr<json_object, JsonObjectDeleter>;
+using JsonObjectPtr = std::unique_ptr<json_object, JsonObjectDeleter>;
 
-void send_json(
-    evhttp_request* request,
-    int status,
-    const char* reason,
-    std::string_view body
-) {
+void send_response(evhttp_request* request,int status,const char* reason,std::string_view content_type,std::string_view body) {
     evbuffer* output = evbuffer_new();
 
     if (output == nullptr) {
@@ -44,10 +44,14 @@ void send_json(
         return;
     }
 
+    const std::string content_type_text{
+        content_type
+    };
+
     evhttp_add_header(
         evhttp_request_get_output_headers(request),
         "Content-Type",
-        "application/json; charset=utf-8"
+        content_type_text.c_str()
     );
 
     evhttp_add_header(
@@ -55,6 +59,26 @@ void send_json(
         "Cache-Control",
         "no-store"
     );
+
+    evhttp_add_header(
+        evhttp_request_get_output_headers(request),
+        "X-Content-Type-Options",
+        "nosniff"
+    );
+
+    if (content_type == "text/html; charset=utf-8") {
+        evhttp_add_header(
+            evhttp_request_get_output_headers(request),
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self'; "
+            "connect-src 'self'; "
+            "img-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'none'"
+        );
+    }
 
     evbuffer_add(
         output,
@@ -70,6 +94,66 @@ void send_json(
     );
 
     evbuffer_free(output);
+}
+
+void send_json(
+    evhttp_request* request,
+    int status,
+    const char* reason,
+    std::string_view body
+) {
+    send_response(
+        request,
+        status,
+        reason,
+        "application/json; charset=utf-8",
+        body
+    );
+}
+
+std::string load_web_asset(
+    std::string_view filename
+) {
+    const std::string path =
+        std::string{LESCHAT_WEB_ROOT} +
+        "/" +
+        std::string{filename};
+
+    std::ifstream input{
+        path,
+        std::ios::binary
+    };
+
+    if (!input.is_open()) {
+        throw std::runtime_error(
+            "Unable to open web asset: " + path
+        );
+    }
+
+    std::ostringstream contents;
+    contents << input.rdbuf();
+
+    if (input.bad()) {
+        throw std::runtime_error(
+            "Unable to read web asset: " + path
+        );
+    }
+
+    return contents.str();
+}
+
+void send_web_asset(
+    evhttp_request* request,
+    std::string_view filename,
+    std::string_view content_type
+) {
+    send_response(
+        request,
+        HTTP_OK,
+        "OK",
+        content_type,
+        load_web_asset(filename)
+    );
 }
 
 std::string make_status_json(
@@ -277,9 +361,38 @@ void Application::process_request(
         return;
     }
 
-    const char* uri =
-        evhttp_request_get_uri(request);
+    const char* uri = evhttp_request_get_uri(request);
 
+    
+    if (uri != nullptr &&
+        std::string_view{uri} == "/") {
+        send_web_asset(
+            request,
+            "index.html",
+            "text/html; charset=utf-8"
+        );
+        return;
+    }
+
+    if (uri != nullptr &&
+        std::string_view{uri} == "/style.css") {
+        send_web_asset(
+            request,
+            "style.css",
+            "text/css; charset=utf-8"
+        );
+        return;
+    }
+
+    if (uri != nullptr &&
+        std::string_view{uri} == "/app.js") {
+        send_web_asset(
+            request,
+            "app.js",
+            "text/javascript; charset=utf-8"
+        );
+        return;
+    }
     if (uri != nullptr &&
         std::string_view{uri} == "/healthz") {
         send_json(
@@ -303,17 +416,6 @@ void Application::process_request(
                 bind_address_,
                 port_
             )
-        );
-        return;
-    }
-
-    if (uri != nullptr &&
-        std::string_view{uri} == "/") {
-        send_json(
-            request,
-            HTTP_OK,
-            "OK",
-            R"({"service":"LES Mesh Chat","status":"/api/v1/status","health":"/healthz"})"
         );
         return;
     }

@@ -30,6 +30,7 @@ target_include_directories(
     les-chatd
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        LESCHAT_WEB_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/web"
 )
 
 target_link_libraries(

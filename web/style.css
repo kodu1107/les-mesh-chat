@@ -1,0 +1,268 @@
+:root {
+    color-scheme: dark;
+    font-family:
+        Inter,
+        Pretendard,
+        "Noto Sans KR",
+        system-ui,
+        sans-serif;
+
+    --background: #071014;
+    --panel: #0d191e;
+    --panel-light: #132229;
+    --border: #24414b;
+    --text: #e4f9ff;
+    --muted: #7f9da6;
+    --accent: #16d9eb;
+    --success: #46e58c;
+    --danger: #ff667d;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    color: var(--text);
+    background:
+        linear-gradient(
+            rgba(22, 217, 235, 0.025) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(22, 217, 235, 0.025) 1px,
+            transparent 1px
+        ),
+        var(--background);
+    background-size: 32px 32px;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+.app {
+    width: min(1200px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 24px 0;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 86px;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    background: rgba(13, 25, 30, 0.94);
+}
+
+h1,
+h2,
+p {
+    margin-top: 0;
+}
+
+h1 {
+    margin-bottom: 0;
+    color: var(--accent);
+    font-size: 1.45rem;
+    letter-spacing: 0.08em;
+}
+
+h2 {
+    margin-bottom: 16px;
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+}
+
+.eyebrow {
+    margin-bottom: 7px;
+    color: var(--muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+}
+
+.status {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+}
+
+.status-online {
+    color: var(--success);
+    border-color: var(--success);
+}
+
+.status-offline {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.status-loading {
+    color: var(--muted);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 620px;
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    background: rgba(13, 25, 30, 0.94);
+}
+
+.sidebar {
+    padding: 22px;
+    border-right: 1px solid var(--border);
+}
+
+.node-info {
+    margin: 0 0 32px;
+}
+
+.node-info div {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.node-info dt {
+    margin-bottom: 5px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.node-info dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-family: monospace;
+    font-size: 0.86rem;
+}
+
+.empty-peer {
+    padding: 18px;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.chat {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-width: 0;
+}
+
+.channel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+}
+
+.channel-header h2 {
+    margin-bottom: 0;
+}
+
+.channel-name {
+    color: var(--accent);
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.messages {
+    display: grid;
+    place-items: center;
+    min-height: 430px;
+    padding: 24px;
+}
+
+.empty-message {
+    max-width: 420px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.empty-message strong {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--text);
+}
+
+.empty-message p {
+    margin-bottom: 0;
+    line-height: 1.7;
+}
+
+.composer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.composer input,
+.composer button {
+    min-height: 44px;
+    border: 1px solid var(--border);
+}
+
+.composer input {
+    padding: 0 14px;
+    color: var(--text);
+    background: var(--background);
+}
+
+.composer button {
+    min-width: 90px;
+    color: var(--background);
+    background: var(--accent);
+}
+
+.composer input:disabled,
+.composer button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+    .app {
+        width: min(100% - 16px, 1200px);
+        padding: 8px 0;
+    }
+
+    .topbar {
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .messages {
+        min-height: 340px;
+    }
+}
