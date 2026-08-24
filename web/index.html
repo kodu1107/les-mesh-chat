@@ -70,35 +70,48 @@
                     </span>
                 </div>
 
-                <div class="messages">
-                    <div class="empty-message">
-                        <strong>LES Mesh Chat 준비 완료</strong>
-                        <p>
-                            다음 단계에서 노드 간 메시지
-                            송수신 기능을 추가합니다.
-                        </p>
-                    </div>
-                </div>
+                <div
+    id="message-list"
+    class="messages"
+    aria-live="polite"
+    aria-label="채팅 메시지"
+>
+    <div
+        id="empty-message"
+        class="empty-message"
+    >
+        <strong>아직 메시지가 없습니다</strong>
+        <p>첫 번째 메시지를 전송해 보세요.</p>
+    </div>
+</div>
 
-                <form class="composer">
-                    <label
-                        class="visually-hidden"
-                        for="message-input"
-                    >
-                        메시지
-                    </label>
+<form id="message-form" class="composer">
+    <label
+        class="visually-hidden"
+        for="message-input"
+    >
+        메시지
+    </label>
 
-                    <input
-                        id="message-input"
-                        type="text"
-                        placeholder="메시지 전송 기능 준비 중"
-                        disabled
-                    >
+    <input
+        id="message-input"
+        type="text"
+        maxlength="2048"
+        autocomplete="off"
+        placeholder="메시지를 입력하세요"
+        required
+    >
 
-                    <button type="submit" disabled>
-                        전송
-                    </button>
-                </form>
+    <button id="send-button" type="submit">
+        전송
+    </button>
+</form>
+
+<p
+    id="composer-status"
+    class="composer-status"
+    role="status"
+></p>
             </section>
         </section>
     </main>
