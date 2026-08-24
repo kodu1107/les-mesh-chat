@@ -319,3 +319,40 @@ h2 {
     cursor: wait;
     opacity: 0.55;
 }
+
+.message {
+    box-sizing: border-box;
+    width: min(78%, 680px);
+}
+
+.message-local {
+    align-self: flex-end;
+    margin-left: auto;
+    border-color: rgba(0, 220, 255, 0.4);
+    background: rgba(0, 92, 112, 0.38);
+}
+
+.message-remote {
+    align-self: flex-start;
+    margin-right: auto;
+    border-color: rgba(140, 160, 170, 0.3);
+    background: rgba(18, 28, 34, 0.85);
+}
+
+.message-local .message-header {
+    flex-direction: row-reverse;
+}
+
+.message-local .message-body {
+    text-align: right;
+}
+
+.message-remote .message-body {
+    text-align: left;
+}
+
+@media (max-width: 640px) {
+    .message {
+        width: 90%;
+    }
+}

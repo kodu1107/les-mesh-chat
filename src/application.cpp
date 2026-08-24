@@ -5,14 +5,17 @@
 #include <event2/http.h>
 #include <json-c/json.h>
 
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <fstream>
-#include <sstream>
 
 #ifndef LESCHAT_WEB_ROOT
 #define LESCHAT_WEB_ROOT "web"
@@ -22,6 +25,10 @@ namespace leschat {
 
 namespace {
 
+constexpr std::size_t max_message_bytes = 2048;
+constexpr std::size_t max_request_bytes = 4096;
+constexpr std::size_t max_memory_messages = 5000;
+
 struct JsonObjectDeleter {
     void operator()(json_object* object) const noexcept {
         if (object != nullptr) {
@@ -30,9 +37,16 @@ struct JsonObjectDeleter {
     }
 };
 
-using JsonObjectPtr = std::unique_ptr<json_object, JsonObjectDeleter>;
+using JsonObjectPtr =
+    std::unique_ptr<json_object, JsonObjectDeleter>;
 
-void send_response(evhttp_request* request,int status,const char* reason,std::string_view content_type,std::string_view body) {
+void send_response(
+    evhttp_request* request,
+    int status,
+    const char* reason,
+    std::string_view content_type,
+    std::string_view body
+) {
     evbuffer* output = evbuffer_new();
 
     if (output == nullptr) {
@@ -44,9 +58,7 @@ void send_response(evhttp_request* request,int status,const char* reason,std::st
         return;
     }
 
-    const std::string content_type_text{
-        content_type
-    };
+    const std::string content_type_text{content_type};
 
     evhttp_add_header(
         evhttp_request_get_output_headers(request),
@@ -80,19 +92,8 @@ void send_response(evhttp_request* request,int status,const char* reason,std::st
         );
     }
 
-    evbuffer_add(
-        output,
-        body.data(),
-        body.size()
-    );
-
-    evhttp_send_reply(
-        request,
-        status,
-        reason,
-        output
-    );
-
+    evbuffer_add(output, body.data(), body.size());
+    evhttp_send_reply(request, status, reason, output);
     evbuffer_free(output);
 }
 
@@ -111,18 +112,29 @@ void send_json(
     );
 }
 
-std::string load_web_asset(
-    std::string_view filename
-) {
+std::string serialize_json(json_object* object) {
+    const char* serialized =
+        json_object_to_json_string_ext(
+            object,
+            JSON_C_TO_STRING_PLAIN
+        );
+
+    if (serialized == nullptr) {
+        throw std::runtime_error(
+            "Unable to serialize JSON"
+        );
+    }
+
+    return serialized;
+}
+
+std::string load_web_asset(std::string_view filename) {
     const std::string path =
         std::string{LESCHAT_WEB_ROOT} +
         "/" +
         std::string{filename};
 
-    std::ifstream input{
-        path,
-        std::ios::binary
-    };
+    std::ifstream input{path, std::ios::binary};
 
     if (!input.is_open()) {
         throw std::runtime_error(
@@ -154,6 +166,219 @@ void send_web_asset(
         content_type,
         load_web_asset(filename)
     );
+}
+
+std::string request_path(evhttp_request* request) {
+    const char* uri_text =
+        evhttp_request_get_uri(request);
+
+    if (uri_text == nullptr) {
+        return {};
+    }
+
+    evhttp_uri* uri = evhttp_uri_parse(uri_text);
+
+    if (uri == nullptr) {
+        return {};
+    }
+
+    const char* path_text = evhttp_uri_get_path(uri);
+
+    std::string path =
+        path_text == nullptr ? "/" : path_text;
+
+    evhttp_uri_free(uri);
+    return path;
+}
+
+std::string read_request_body(
+    evhttp_request* request
+) {
+    evbuffer* input =
+        evhttp_request_get_input_buffer(request);
+
+    const std::size_t length =
+        evbuffer_get_length(input);
+
+    if (length > max_request_bytes) {
+        throw std::length_error("request_too_large");
+    }
+
+    std::string body(length, '\0');
+
+    if (length != 0) {
+        const auto copied = evbuffer_copyout(
+            input,
+            body.data(),
+            length
+        );
+
+        if (copied < 0 ||
+            static_cast<std::size_t>(copied) != length) {
+            throw std::runtime_error(
+                "Unable to read request body"
+            );
+        }
+    }
+
+    return body;
+}
+
+bool is_valid_utf8(std::string_view text) {
+    std::size_t index = 0;
+
+    while (index < text.size()) {
+        const auto first =
+            static_cast<unsigned char>(text[index]);
+
+        std::size_t continuation_count = 0;
+        std::uint32_t code_point = 0;
+
+        if (first <= 0x7F) {
+            continuation_count = 0;
+            code_point = first;
+        } else if (
+            first >= 0xC2 &&
+            first <= 0xDF
+        ) {
+            continuation_count = 1;
+            code_point = first & 0x1F;
+        } else if (
+            first >= 0xE0 &&
+            first <= 0xEF
+        ) {
+            continuation_count = 2;
+            code_point = first & 0x0F;
+        } else if (
+            first >= 0xF0 &&
+            first <= 0xF4
+        ) {
+            continuation_count = 3;
+            code_point = first & 0x07;
+        } else {
+            return false;
+        }
+
+        if (index + continuation_count >= text.size()) {
+            return false;
+        }
+
+        for (std::size_t offset = 1;
+             offset <= continuation_count;
+             ++offset) {
+            const auto next = static_cast<unsigned char>(
+                text[index + offset]
+            );
+
+            if ((next & 0xC0) != 0x80) {
+                return false;
+            }
+
+            code_point =
+                (code_point << 6) |
+                (next & 0x3F);
+        }
+
+        if (
+            (continuation_count == 2 &&
+             code_point < 0x800) ||
+            (continuation_count == 3 &&
+             code_point < 0x10000) ||
+            code_point > 0x10FFFF ||
+            (code_point >= 0xD800 &&
+             code_point <= 0xDFFF)
+        ) {
+            return false;
+        }
+
+        index += continuation_count + 1;
+    }
+
+    return true;
+}
+
+std::int64_t current_time_ms() {
+    const auto now =
+        std::chrono::system_clock::now();
+
+    return std::chrono::duration_cast<
+        std::chrono::milliseconds
+    >(
+        now.time_since_epoch()
+    ).count();
+}
+
+JsonObjectPtr message_to_json(
+    const ChatMessage& message
+) {
+    JsonObjectPtr object{json_object_new_object()};
+
+    if (!object) {
+        throw std::runtime_error(
+            "Unable to create message JSON"
+        );
+    }
+
+    json_object_object_add(
+        object.get(),
+        "sequence",
+        json_object_new_int64(
+            static_cast<std::int64_t>(
+                message.sequence
+            )
+        )
+    );
+
+    json_object_object_add(
+        object.get(),
+        "id",
+        json_object_new_string(
+            message.message_id.c_str()
+        )
+    );
+
+    json_object_object_add(
+        object.get(),
+        "callsign",
+        json_object_new_string(
+            message.callsign.c_str()
+        )
+    );
+
+    json_object_object_add(
+        object.get(),
+        "channel",
+        json_object_new_string(
+            message.channel.c_str()
+        )
+    );
+
+    json_object_object_add(
+        object.get(),
+        "created_at_ms",
+        json_object_new_int64(
+            message.created_at_ms
+        )
+    );
+
+    json_object_object_add(
+        object.get(),
+        "body",
+        json_object_new_string_len(
+            message.body.data(),
+            static_cast<int>(message.body.size())
+        )
+    );
+
+    json_object_object_add(
+        object.get(),
+        "origin",
+        json_object_new_string(
+            message.origin.c_str()
+        )
+    );
+
+    return object;
 }
 
 std::string make_status_json(
@@ -219,19 +444,7 @@ std::string make_status_json(
         )
     );
 
-    const char* serialized =
-        json_object_to_json_string_ext(
-            root.get(),
-            JSON_C_TO_STRING_PLAIN
-        );
-
-    if (serialized == nullptr) {
-        throw std::runtime_error(
-            "Unable to serialize status JSON"
-        );
-    }
-
-    return serialized;
+    return serialize_json(root.get());
 }
 
 }  // namespace
@@ -293,12 +506,10 @@ Application::Application(
 Application::~Application() {
     if (http_server_ != nullptr) {
         evhttp_free(http_server_);
-        http_server_ = nullptr;
     }
 
     if (event_base_ != nullptr) {
         event_base_free(event_base_);
-        event_base_ = nullptr;
     }
 }
 
@@ -332,6 +543,13 @@ void Application::handle_request(
 
     try {
         application->process_request(request);
+    } catch (const std::length_error&) {
+        send_json(
+            request,
+            413,
+            "Payload Too Large",
+            R"({"error":"request_too_large"})"
+        );
     } catch (const std::exception& error) {
         std::cerr
             << "Request handling error: "
@@ -350,22 +568,22 @@ void Application::handle_request(
 void Application::process_request(
     evhttp_request* request
 ) {
-    if (evhttp_request_get_command(request) !=
-        EVHTTP_REQ_GET) {
+    const std::string path = request_path(request);
+
+    if (path.empty()) {
         send_json(
             request,
-            HTTP_BADMETHOD,
-            "Method Not Allowed",
-            R"({"error":"method_not_allowed"})"
+            HTTP_BADREQUEST,
+            "Bad Request",
+            R"({"error":"invalid_uri"})"
         );
         return;
     }
 
-    const char* uri = evhttp_request_get_uri(request);
+    const evhttp_cmd_type method =
+        evhttp_request_get_command(request);
 
-    
-    if (uri != nullptr &&
-        std::string_view{uri} == "/") {
+    if (method == EVHTTP_REQ_GET && path == "/") {
         send_web_asset(
             request,
             "index.html",
@@ -374,8 +592,10 @@ void Application::process_request(
         return;
     }
 
-    if (uri != nullptr &&
-        std::string_view{uri} == "/style.css") {
+    if (
+        method == EVHTTP_REQ_GET &&
+        path == "/style.css"
+    ) {
         send_web_asset(
             request,
             "style.css",
@@ -384,8 +604,10 @@ void Application::process_request(
         return;
     }
 
-    if (uri != nullptr &&
-        std::string_view{uri} == "/app.js") {
+    if (
+        method == EVHTTP_REQ_GET &&
+        path == "/app.js"
+    ) {
         send_web_asset(
             request,
             "app.js",
@@ -393,8 +615,11 @@ void Application::process_request(
         );
         return;
     }
-    if (uri != nullptr &&
-        std::string_view{uri} == "/healthz") {
+
+    if (
+        method == EVHTTP_REQ_GET &&
+        path == "/healthz"
+    ) {
         send_json(
             request,
             HTTP_OK,
@@ -404,9 +629,10 @@ void Application::process_request(
         return;
     }
 
-    if (uri != nullptr &&
-        std::string_view{uri} ==
-            "/api/v1/status") {
+    if (
+        method == EVHTTP_REQ_GET &&
+        path == "/api/v1/status"
+    ) {
         send_json(
             request,
             HTTP_OK,
@@ -420,11 +646,249 @@ void Application::process_request(
         return;
     }
 
+    if (path == "/api/v1/messages") {
+        if (method == EVHTTP_REQ_GET) {
+            get_messages(request);
+            return;
+        }
+
+        if (method == EVHTTP_REQ_POST) {
+            create_message(request);
+            return;
+        }
+
+        send_json(
+            request,
+            HTTP_BADMETHOD,
+            "Method Not Allowed",
+            R"({"error":"method_not_allowed"})"
+        );
+        return;
+    }
+
     send_json(
         request,
         HTTP_NOTFOUND,
         "Not Found",
         R"({"error":"not_found"})"
+    );
+}
+
+void Application::get_messages(
+    evhttp_request* request
+) {
+    JsonObjectPtr root{json_object_new_object()};
+    JsonObjectPtr items{json_object_new_array()};
+
+    if (!root || !items) {
+        throw std::runtime_error(
+            "Unable to create messages JSON"
+        );
+    }
+
+    for (const ChatMessage& message : messages_) {
+        JsonObjectPtr item = message_to_json(message);
+
+        json_object_array_add(
+            items.get(),
+            item.release()
+        );
+    }
+
+    json_object_object_add(
+        root.get(),
+        "messages",
+        items.release()
+    );
+
+    json_object_object_add(
+        root.get(),
+        "count",
+        json_object_new_int64(
+            static_cast<std::int64_t>(
+                messages_.size()
+            )
+        )
+    );
+
+    send_json(
+        request,
+        HTTP_OK,
+        "OK",
+        serialize_json(root.get())
+    );
+}
+
+void Application::create_message(
+    evhttp_request* request
+) {
+    const char* content_type = evhttp_find_header(
+        evhttp_request_get_input_headers(request),
+        "Content-Type"
+    );
+
+    if (
+        content_type == nullptr ||
+        std::string_view{content_type}.find(
+            "application/json"
+        ) != 0
+    ) {
+        send_json(
+            request,
+            415,
+            "Unsupported Media Type",
+            R"({"error":"content_type_must_be_application_json"})"
+        );
+        return;
+    }
+
+    const std::string request_body =
+        read_request_body(request);
+
+    json_tokener* tokener = json_tokener_new();
+
+    if (tokener == nullptr) {
+        throw std::runtime_error(
+            "Unable to create JSON parser"
+        );
+    }
+
+    json_object* parsed_raw = json_tokener_parse_ex(
+        tokener,
+        request_body.data(),
+        static_cast<int>(request_body.size())
+    );
+
+    const json_tokener_error parse_error =
+        json_tokener_get_error(tokener);
+
+    json_tokener_free(tokener);
+
+    JsonObjectPtr parsed{parsed_raw};
+
+    if (
+        parse_error != json_tokener_success ||
+        !parsed ||
+        !json_object_is_type(
+            parsed.get(),
+            json_type_object
+        )
+    ) {
+        send_json(
+            request,
+            HTTP_BADREQUEST,
+            "Bad Request",
+            R"({"error":"invalid_json"})"
+        );
+        return;
+    }
+
+    json_object* body_value = nullptr;
+
+    if (
+        !json_object_object_get_ex(
+            parsed.get(),
+            "body",
+            &body_value
+        ) ||
+        body_value == nullptr ||
+        !json_object_is_type(
+            body_value,
+            json_type_string
+        )
+    ) {
+        send_json(
+            request,
+            HTTP_BADREQUEST,
+            "Bad Request",
+            R"({"error":"body_must_be_string"})"
+        );
+        return;
+    }
+
+    const char* body_data =
+        json_object_get_string(body_value);
+
+    const int body_length =
+        json_object_get_string_len(body_value);
+
+    if (body_data == nullptr || body_length <= 0) {
+        send_json(
+            request,
+            HTTP_BADREQUEST,
+            "Bad Request",
+            R"({"error":"message_empty"})"
+        );
+        return;
+    }
+
+    const std::string body{
+        body_data,
+        static_cast<std::size_t>(body_length)
+    };
+
+    if (body.size() > max_message_bytes) {
+        send_json(
+            request,
+            413,
+            "Payload Too Large",
+            R"({"error":"message_too_large","max_bytes":2048})"
+        );
+        return;
+    }
+
+    if (!is_valid_utf8(body)) {
+        send_json(
+            request,
+            HTTP_BADREQUEST,
+            "Bad Request",
+            R"({"error":"message_must_be_valid_utf8"})"
+        );
+        return;
+    }
+
+    ChatMessage message{
+        .sequence = next_sequence_,
+        .message_id =
+            identity_.node_id +
+            ":" +
+            std::to_string(next_sequence_),
+        .origin = identity_.node_id,
+        .callsign = identity_.callsign,
+        .channel = "les-manet",
+        .created_at_ms = current_time_ms(),
+        .body = body
+    };
+
+    ++next_sequence_;
+
+    messages_.push_back(message);
+
+    if (messages_.size() > max_memory_messages) {
+        messages_.erase(messages_.begin());
+    }
+
+    JsonObjectPtr response{json_object_new_object()};
+    JsonObjectPtr message_json =
+        message_to_json(message);
+
+    if (!response || !message_json) {
+        throw std::runtime_error(
+            "Unable to create response JSON"
+        );
+    }
+
+    json_object_object_add(
+        response.get(),
+        "message",
+        message_json.release()
+    );
+
+    send_json(
+        request,
+        201,
+        "Created",
+        serialize_json(response.get())
     );
 }
 

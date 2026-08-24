@@ -23,6 +23,7 @@ const elements = {
         document.querySelector("#composer-status")
 };
 
+let localNodeId = "";
 let composing = false;
 let sending = false;
 
@@ -61,7 +62,13 @@ function formatMessageTime(createdAtMs) {
 
 function createMessageElement(message) {
     const article = document.createElement("article");
-    article.className = "message";
+    const isLocalMessage =
+    message.origin === localNodeId;
+
+    article.className = isLocalMessage
+        ? "message message-local"
+        : "message message-remote";
+
     article.dataset.messageId = message.id;
 
     const header = document.createElement("header");
@@ -145,6 +152,7 @@ async function refreshStatus() {
         elements.callsign.textContent =
             status.callsign;
 
+        localNodeId = status.node_id;
         elements.nodeId.textContent =
             status.node_id;
 
