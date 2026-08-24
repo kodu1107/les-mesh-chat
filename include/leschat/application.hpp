@@ -1,5 +1,7 @@
 #pragma once
 
+#include "leschat/node_identity.hpp"
+
 #include <cstdint>
 #include <string>
 
@@ -10,7 +12,7 @@ struct evhttp_request;
 namespace leschat {
     class Application {
         public:
-            Application(std::string bind_address, uint16_t port);
+            Application(NodeIdentity identity, std::string bind_address, uint16_t port);
             ~Application();
 
             Application(const Application&) = delete;
@@ -24,8 +26,10 @@ namespace leschat {
 
             void process_request(evhttp_request* request);
 
+            NodeIdentity identity_;
             std::string bind_address_;
             std::uint16_t port_;
+            
             event_base* event_base_{nullptr};
             evhttp* http_server_{nullptr};
     };
