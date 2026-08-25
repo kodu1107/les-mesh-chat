@@ -47,6 +47,12 @@ cp -a "$repo_root/openwrt/package/les-chatd/." "$sdk_dir/package/les-chatd/"
 (
 	cd "$sdk_dir"
 
+	disable_package() {
+		option=$1
+		sed -i "/^${option}=/d;/^# ${option} is not set$/d" .config
+		printf '# %s is not set\n' "$option" >> .config
+	}
+
 	if [ ! -e package/feeds/base/libevent2 ] ||
 	   [ ! -e package/feeds/base/libjson-c ] ||
 	   [ ! -e package/feeds/packages/sqlite3 ]; then
@@ -55,19 +61,39 @@ cp -a "$repo_root/openwrt/package/les-chatd/." "$sdk_dir/package/les-chatd/"
 		./scripts/feeds install -p packages libsqlite3
 	fi
 
+	# A freshly extracted SDK has no .config. Without this initialization,
+	# package targets fall back to interactive menuconfig and fail in CI.
+	make defconfig
+	for option in \
+		CONFIG_PACKAGE_libedit \
+		CONFIG_PACKAGE_libevent2-core \
+		CONFIG_PACKAGE_libevent2-extra \
+		CONFIG_PACKAGE_libevent2-mbedtls \
+		CONFIG_PACKAGE_libevent2-openssl \
+		CONFIG_PACKAGE_libevent2-pthreads \
+		CONFIG_PACKAGE_sqlite3-cli
+	do
+		disable_package "$option"
+	done
+	make defconfig
+
+	# Register the SDK-provided libc and libgcc before dependency checks run.
+	make package/toolchain/compile NO_DEPS=1 V=s
+
+	if ! find staging_dir -path '*/usr/lib/pkgconfig/zlib.pc' -print -quit | grep -q .; then
+		make package/feeds/base/zlib/compile NO_DEPS=1 V=s
+	fi
+
 	if ! find staging_dir -path '*/usr/lib/pkgconfig/libevent.pc' -print -quit | grep -q .; then
-		make package/feeds/base/libevent2/compile V=s
+		make package/feeds/base/libevent2/compile NO_DEPS=1 V=s
 	fi
 
 	if ! find staging_dir -path '*/usr/lib/pkgconfig/json-c.pc' -print -quit | grep -q .; then
-		make package/feeds/base/libjson-c/compile V=s
+		make package/feeds/base/libjson-c/compile NO_DEPS=1 V=s
 	fi
 
 	if ! find staging_dir -path '*/usr/lib/pkgconfig/sqlite3.pc' -print -quit | grep -q .; then
-		make package/feeds/packages/sqlite3/compile \
-			CONFIG_PACKAGE_libedit=n \
-			CONFIG_PACKAGE_sqlite3-cli=n \
-			V=s
+		make package/feeds/packages/sqlite3/compile NO_DEPS=1 V=s
 	fi
 
 	make package/les-chatd/clean
@@ -75,8 +101,7 @@ cp -a "$repo_root/openwrt/package/les-chatd/." "$sdk_dir/package/les-chatd/"
 		LESCHAT_SOURCE_DIR="$repo_root" \
 		LESCHAT_VERSION="$version" \
 		LESCHAT_RELEASE="$release" \
-		CONFIG_PACKAGE_libedit=n \
-		CONFIG_PACKAGE_sqlite3-cli=n \
+		NO_DEPS=1 \
 		V=s
 )
 
