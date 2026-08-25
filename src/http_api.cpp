@@ -272,7 +272,7 @@ void HttpApi::get_healthz(evhttp_request* request) {
         request,
         HTTP_OK,
         "OK",
-        R"({"status":"ok","service":"les-chatd","version":"0.1.3"})"
+        R"({"status":"ok","service":"les-chatd","version":"0.1.4"})"
     );
 }
 

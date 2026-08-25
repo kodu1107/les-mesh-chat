@@ -59,7 +59,7 @@ make package/les-chatd/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.3-r1_*.ipk
+opkg install /tmp/les-chatd_0.1.4-r1_*.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```

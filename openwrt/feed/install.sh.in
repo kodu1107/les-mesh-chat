@@ -78,12 +78,70 @@ sed -i '/^src\/gz les_chat_/d' /etc/opkg/customfeeds.conf
 printf 'src/gz les_chat_%s %s\n' "$channel" "$feed_url" >> \
 	/etc/opkg/customfeeds.conf
 
-opkg update
-if opkg status les-chatd 2>/dev/null | grep -q '^Status:.* installed'; then
-	opkg upgrade les-chatd
-else
-	opkg install les-chatd
-fi
+download_dir=/tmp/les-chat-feed-install.$$
+index_file=$download_dir/Packages
+signature_file=$download_dir/Packages.sig
+trap 'rm -rf "$download_dir" "$key_tmp"' EXIT INT TERM
+mkdir -p "$download_dir"
+
+wget -q "$feed_url/Packages" -O "$index_file"
+wget -q "$feed_url/Packages.sig" -O "$signature_file"
+usign -V -m "$index_file" -p "$key_tmp" -x "$signature_file"
+
+package_number=0
+for package_name in \
+	libgcc1 \
+	libstdcpp6 \
+	zlib \
+	libevent2-7 \
+	libjson-c5 \
+	libsqlite3-0 \
+	les-chatd
+do
+	filename=$(
+		awk -v wanted="$package_name" '
+			$1 == "Package:" { selected = ($2 == wanted) }
+			selected && $1 == "Filename:" { print $2; exit }
+		' "$index_file"
+	)
+	filename=${filename#./}
+	case "$filename" in
+		''|*/*|*[!A-Za-z0-9._+~-]*|*.ipk?*)
+			echo "invalid filename for $package_name: ${filename:-missing}" >&2
+			exit 1
+			;;
+		*.ipk) ;;
+		*)
+			echo "invalid filename for $package_name: $filename" >&2
+			exit 1
+			;;
+	esac
+	checksum=$(
+		awk -v wanted="$package_name" '
+			$1 == "Package:" { selected = ($2 == wanted) }
+			selected && $1 == "SHA256sum:" { print $2; exit }
+		' "$index_file"
+	)
+	case "$checksum" in
+		''|*[!0-9a-f]*)
+			echo "invalid checksum for $package_name" >&2
+			exit 1
+			;;
+	esac
+	package_number=$((package_number + 1))
+	download_path=$download_dir/$package_number-$filename
+	wget -q "$feed_url/$filename" \
+		-O "$download_path"
+	actual_checksum=$(sha256sum "$download_path" | awk '{ print $1 }')
+	[ "$actual_checksum" = "$checksum" ] || {
+		echo "checksum verification failed for $package_name" >&2
+		exit 1
+	}
+done
+
+# Every dependency is a verified local file, so opkg never contacts the
+# firmware's external OpenMANET or OpenWrt feeds during installation.
+opkg install "$download_dir"/*.ipk
 
 if [ -x /etc/uci-defaults/99-les-chat ]; then
 	/etc/uci-defaults/99-les-chat
@@ -96,3 +154,6 @@ sleep 1
 wget -qO- http://127.0.0.1:7777/healthz
 echo
 echo "LES Mesh Chat is available on port 7777."
+
+rm -rf "$download_dir" "$key_tmp"
+trap - EXIT INT TERM
