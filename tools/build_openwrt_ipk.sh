@@ -7,13 +7,15 @@ usage() {
 	exit 2
 }
 
-[ "$#" -ge 2 ] && [ "$#" -le 4 ] || usage
+if [ "$#" -lt 2 ] || [ "$#" -gt 4 ]; then
+	usage
+fi
 
 sdk_dir=$1
 output_dir=$2
 version=${3:-0.1.0}
 release=${4:-2}
-repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 
 case "$version" in
 	''|*[!0-9A-Za-z.+~-]*)

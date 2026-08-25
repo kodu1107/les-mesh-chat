@@ -2,7 +2,7 @@
 
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 
 required_files='openwrt/package/les-chatd/Makefile
 openwrt/package/les-chatd/files/etc/config/les-chat
