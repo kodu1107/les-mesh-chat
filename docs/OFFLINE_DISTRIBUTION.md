@@ -64,6 +64,8 @@ wget -qO- http://10.41.0.1:8088/install.sh | \
 - `les-chat-windows-tools-....zip`: 두 CMD와 PowerShell 스크립트
 - `SHA256SUMS`: 릴리스 파일 체크섬
 
-오프라인 묶음에는 `les-chatd`, `libstdcpp6`, `zlib`, `libevent2-7`,
+오프라인 묶음에는 `les-chatd`, `libgcc1`, `libstdcpp6`, `zlib`, `libevent2-7`,
 `libjson-c5`, `libsqlite3-0`만 포함합니다. 펌웨어 핵심인 `libc`는 교체하지
-않으며 OpenWrt `24.10.2`가 아닌 장비에는 설치를 거부합니다.
+않습니다. OpenWrt `24.10.2`와 같은 리비전(`r28739-d9340319c6`)을
+`24.10`으로 표시하는 OpenMANET 1.7.0만 허용하며, 다른 빌드에는 설치를
+거부합니다.

@@ -3,6 +3,7 @@
 set -eu
 
 supported_release=24.10.2
+supported_revision=r28739-d9340319c6
 trusted_key_id=9db1776b78018b98
 
 [ "$#" -eq 0 ] || {
@@ -21,9 +22,18 @@ package_dir=$bundle_dir/packages
 # shellcheck disable=SC1091
 . /etc/openwrt_release
 
-[ "${DISTRIB_RELEASE:-}" = "$supported_release" ] || {
+release_is_supported=0
+if [ "${DISTRIB_RELEASE:-}" = "$supported_release" ]; then
+	release_is_supported=1
+elif [ "${DISTRIB_RELEASE:-}" = 24.10 ] && \
+	[ "${DISTRIB_REVISION:-}" = "$supported_revision" ]; then
+	release_is_supported=1
+fi
+
+[ "$release_is_supported" -eq 1 ] || {
 	echo "unsupported OpenWrt release: ${DISTRIB_RELEASE:-unknown}" >&2
-	echo "expected: $supported_release" >&2
+	echo "revision: ${DISTRIB_REVISION:-unknown}" >&2
+	echo "expected: $supported_release ($supported_revision)" >&2
 	exit 1
 }
 
@@ -68,6 +78,7 @@ usign -V -m "$bundle_dir/SHA256SUMS" -p "$bundle_dir/opkg.pub" \
 )
 
 set -- \
+	"$package_dir"/libgcc1_*_"$package_arch".ipk \
 	"$package_dir"/libstdcpp6_*_"$package_arch".ipk \
 	"$package_dir"/zlib_*_"$package_arch".ipk \
 	"$package_dir"/libevent2-7_*_"$package_arch".ipk \

@@ -4,6 +4,7 @@ set -eu
 
 default_feed_base_url='@FEED_BASE_URL@'
 supported_release='@OPENWRT_RELEASE@'
+supported_revision='r28739-d9340319c6'
 channel=stable
 trusted_key_id=9db1776b78018b98
 
@@ -30,9 +31,20 @@ esac
 # shellcheck disable=SC1091
 . /etc/openwrt_release
 
-[ "${DISTRIB_RELEASE:-}" = "$supported_release" ] || {
+release_is_supported=0
+if [ "${DISTRIB_RELEASE:-}" = "$supported_release" ]; then
+	release_is_supported=1
+elif [ "${DISTRIB_RELEASE:-}" = 24.10 ] && \
+	[ "${DISTRIB_REVISION:-}" = "$supported_revision" ]; then
+	# OpenMANET 1.7.0 shortens the 24.10.2 release label to 24.10,
+	# while retaining the exact upstream OpenWrt revision.
+	release_is_supported=1
+fi
+
+[ "$release_is_supported" -eq 1 ] || {
 	echo "unsupported OpenWrt release: ${DISTRIB_RELEASE:-unknown}" >&2
-	echo "expected: $supported_release" >&2
+	echo "revision: ${DISTRIB_REVISION:-unknown}" >&2
+	echo "expected: $supported_release ($supported_revision)" >&2
 	exit 1
 }
 

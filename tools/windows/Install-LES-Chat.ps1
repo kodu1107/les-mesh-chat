@@ -48,14 +48,20 @@ if ($IdentityFile) {
 $target = "root@$NodeAddress"
 
 Write-Host "Checking $target ..."
-$probe = & ssh.exe @sshOptions $target '. /etc/openwrt_release; printf "RELEASE=%s\n" "$DISTRIB_RELEASE"; opkg print-architecture'
+$probe = & ssh.exe @sshOptions $target '. /etc/openwrt_release; printf "RELEASE=%s\nREVISION=%s\n" "$DISTRIB_RELEASE" "$DISTRIB_REVISION"; opkg print-architecture'
 if ($LASTEXITCODE -ne 0) {
     throw "Unable to inspect the OpenMANET node over SSH."
 }
 $releaseLine = $probe | Where-Object { $_ -match '^RELEASE=' } | Select-Object -First 1
 $openWrtRelease = $releaseLine -replace '^RELEASE=', ''
-if ($openWrtRelease -ne "24.10.2") {
-    throw "Unsupported OpenWrt release: $openWrtRelease (expected 24.10.2)"
+$revisionLine = $probe | Where-Object { $_ -match '^REVISION=' } | Select-Object -First 1
+$openWrtRevision = $revisionLine -replace '^REVISION=', ''
+$releaseIsSupported = ($openWrtRelease -eq "24.10.2") -or (
+    ($openWrtRelease -eq "24.10") -and
+    ($openWrtRevision -eq "r28739-d9340319c6")
+)
+if (-not $releaseIsSupported) {
+    throw "Unsupported OpenWrt build: $openWrtRelease $openWrtRevision"
 }
 $architecture = if ($probe -match 'aarch64_cortex-a76') {
     "aarch64_cortex-a76"

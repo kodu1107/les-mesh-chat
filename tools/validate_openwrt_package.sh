@@ -42,6 +42,8 @@ grep -q '^PKG_BUILD_DEPENDS:=libevent2 libjson-c sqlite3$' \
 	"$root/openwrt/package/les-chatd/Makefile"
 grep -q '@FEED_BASE_URL@' "$root/openwrt/feed/install.sh.in"
 grep -q '@OPENWRT_RELEASE@' "$root/openwrt/feed/install.sh.in"
+grep -q 'r28739-d9340319c6' "$root/openwrt/feed/install.sh.in"
+grep -q 'r28739-d9340319c6' "$root/openwrt/offline/install.sh"
 
 sh -n \
 	"$root/tools/build_openwrt_ipk.sh" \

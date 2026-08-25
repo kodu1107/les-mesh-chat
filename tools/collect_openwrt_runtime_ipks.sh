@@ -48,6 +48,7 @@ copy_one() {
 	cp "$found" "$output_dir/"
 }
 
+copy_one "$sdk_dir/bin" "libgcc1_*_${arch}.ipk" libgcc1
 copy_one "$sdk_dir/bin" "libstdcpp6_*_${arch}.ipk" libstdcpp6
 copy_one "$sdk_dir/bin" "zlib_*_${arch}.ipk" zlib
 copy_one "$sdk_dir/bin" "libevent2-7_*_${arch}.ipk" libevent2-7
