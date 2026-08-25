@@ -6,7 +6,7 @@
 namespace leschat {
 
 inline constexpr int protocol_version = 1;
-inline constexpr const char* app_version = "0.1.5";
+inline constexpr const char* app_version = "0.1.6";
 inline constexpr const char* service_name = "les-chatd";
 inline constexpr const char* default_channel = "les-manet";
 

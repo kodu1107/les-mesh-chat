@@ -31,6 +31,9 @@ Run a node:
 
 On an OpenMANET node with overlapping LAN and HaLow routes, add
 `--discovery-interface br-ahwlan` to select the mesh interface explicitly.
+The same interface is used as the local source address for outgoing peer
+replication and synchronization HTTP connections, so overlapping LAN routes
+do not make chat traffic one-way.
 
 Open <http://127.0.0.1:7777/> in a browser.
 

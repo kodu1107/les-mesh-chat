@@ -34,9 +34,13 @@ struct SyncService::RequestContext {
 SyncService::SyncService(
     event_base* event_base,
     const PeerRegistry& peers,
-    const MessageStore& store
+    const MessageStore& store,
+    std::string local_address
 )
-    : event_base_(event_base), peers_(peers), store_(store) {
+    : event_base_(event_base),
+      peers_(peers),
+      store_(store),
+      local_address_(std::move(local_address)) {
     timer_ = event_new(
         event_base_, -1, EV_PERSIST,
         &SyncService::timer_callback, this
@@ -86,6 +90,11 @@ void SyncService::synchronize() {
         );
         if (connection == nullptr) {
             continue;
+        }
+        if (!local_address_.empty()) {
+            evhttp_connection_set_local_address(
+                connection, local_address_.c_str()
+            );
         }
         auto context = std::make_unique<RequestContext>(
             RequestContext{this, connection, peer.address, peer.http_port}
@@ -195,6 +204,11 @@ void SyncService::send_batch(
     );
     if (connection == nullptr) {
         return;
+    }
+    if (!local_address_.empty()) {
+        evhttp_connection_set_local_address(
+            connection, local_address_.c_str()
+        );
     }
     auto context = std::make_unique<RequestContext>(
         RequestContext{this, connection, std::string{address}, port}

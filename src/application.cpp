@@ -11,9 +11,58 @@
 
 #include <event2/event.h>
 
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
 #include <utility>
+
+namespace {
+
+std::string interface_ipv4_address(std::string_view interface_name) {
+    if (interface_name.empty()) {
+        return {};
+    }
+
+    ifaddrs* interfaces = nullptr;
+    if (getifaddrs(&interfaces) != 0) {
+        return {};
+    }
+
+    std::string address;
+    for (ifaddrs* current = interfaces;
+         current != nullptr;
+         current = current->ifa_next) {
+        if (current->ifa_name == nullptr ||
+            interface_name != current->ifa_name ||
+            current->ifa_addr == nullptr ||
+            current->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+
+        const auto* ipv4 = reinterpret_cast<const sockaddr_in*>(
+            current->ifa_addr
+        );
+        char address_buffer[INET_ADDRSTRLEN]{};
+        if (inet_ntop(
+                AF_INET,
+                &ipv4->sin_addr,
+                address_buffer,
+                sizeof(address_buffer)
+            ) != nullptr) {
+            address = address_buffer;
+        }
+        break;
+    }
+
+    freeifaddrs(interfaces);
+    return address;
+}
+
+}  // namespace
 
 namespace leschat {
 
@@ -46,6 +95,9 @@ Application::Application(
         std::move(database_path),
         max_database_bytes
     );
+    const std::string local_address = interface_ipv4_address(
+        discovery_interface
+    );
     discovery_service_ = std::make_unique<DiscoveryService>(
         event_base_.get(),
         peer_registry_,
@@ -57,12 +109,14 @@ Application::Application(
     );
     replication_service_ = std::make_unique<ReplicationService>(
         event_base_.get(),
-        peer_registry_
+        peer_registry_,
+        local_address
     );
     sync_service_ = std::make_unique<SyncService>(
         event_base_.get(),
         peer_registry_,
-        *message_store_
+        *message_store_,
+        local_address
     );
     event_stream_ = std::make_unique<EventStream>();
     message_service_ = std::make_unique<MessageService>(

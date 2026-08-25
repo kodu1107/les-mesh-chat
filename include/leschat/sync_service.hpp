@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 struct event;
@@ -17,7 +18,8 @@ public:
     SyncService(
         event_base* event_base,
         const PeerRegistry& peers,
-        const MessageStore& store
+        const MessageStore& store,
+        std::string local_address
     );
     ~SyncService();
 
@@ -56,6 +58,7 @@ private:
     event_base* event_base_;
     const PeerRegistry& peers_;
     const MessageStore& store_;
+    std::string local_address_;
     event* timer_{nullptr};
 };
 

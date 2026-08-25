@@ -59,7 +59,7 @@ make package/les-chatd/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.5-r1_*.ipk
+opkg install /tmp/les-chatd_0.1.6-r1_*.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```
@@ -90,8 +90,10 @@ uci commit les-chat
 `discovery_interface 'auto'`는 OpenMANET의 `br-ahwlan`이 존재하면 UDP
 announce 송신 인터페이스로 사용합니다. 같은 IP 대역이 LAN과 HaLow에 동시에
 설정된 MeshGate에서는 `br-ahwlan`을 명시하면 커널의 모호한 broadcast 경로를
-피할 수 있습니다. 인터페이스나 경로가 일시적으로 없어 announce가 실패해도
-웹/API와 메시지 저장 서비스는 계속 실행되고 5초마다 발견을 재시도합니다.
+피할 수 있습니다. 또한 피어 복제와 누락 메시지 동기화 HTTP 연결도 해당
+인터페이스의 IPv4 주소를 송신 주소로 사용하므로 양방향 채팅이 유지됩니다.
+인터페이스나 경로가 일시적으로 없어 announce가 실패해도 웹/API와 메시지
+저장 서비스는 계속 실행되고 5초마다 발견을 재시도합니다.
 
 ## 방화벽
 

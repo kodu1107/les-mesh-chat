@@ -20,9 +20,12 @@ struct ReplicationService::RequestContext {
 
 ReplicationService::ReplicationService(
     event_base* event_base,
-    const PeerRegistry& peers
+    const PeerRegistry& peers,
+    std::string local_address
 )
-    : event_base_(event_base), peers_(peers) {}
+    : event_base_(event_base),
+      peers_(peers),
+      local_address_(std::move(local_address)) {}
 
 void ReplicationService::broadcast(std::string_view json_payload) {
     const std::vector<Peer> peers = peers_.active_peers(current_time_ms());
@@ -34,6 +37,11 @@ void ReplicationService::broadcast(std::string_view json_payload) {
             std::cerr << "Unable to create replication connection for peer "
                       << peer.node_id << '\n';
             continue;
+        }
+        if (!local_address_.empty()) {
+            evhttp_connection_set_local_address(
+                connection, local_address_.c_str()
+            );
         }
 
         auto context = std::make_unique<RequestContext>();

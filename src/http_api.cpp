@@ -268,11 +268,14 @@ void HttpApi::serve_script(evhttp_request* request) {
 }
 
 void HttpApi::get_healthz(evhttp_request* request) {
+    const std::string body =
+        R"({"status":"ok","service":"les-chatd","version":")" +
+        std::string{app_version} + R"("})";
     send_json(
         request,
         HTTP_OK,
         "OK",
-        R"({"status":"ok","service":"les-chatd","version":"0.1.4"})"
+        body
     );
 }
 
