@@ -68,6 +68,8 @@ trap - EXIT INT TERM
 
 cp "$bundle_dir/les-chat-feed.init" /etc/init.d/les-chat-feed
 chmod 0755 /etc/init.d/les-chat-feed
+cp "$bundle_dir/les-chat-routing.init" /etc/init.d/les-chat-routing
+chmod 0755 /etc/init.d/les-chat-routing
 
 touch /etc/config/les-chat-feed
 uci -q delete les-chat-feed.main || true
@@ -88,6 +90,8 @@ uci commit firewall
 
 /etc/init.d/les-chat-feed enable
 /etc/init.d/les-chat-feed restart
+/etc/init.d/les-chat-routing enable
+/etc/init.d/les-chat-routing restart
 sleep 1
 wget -qO- "http://127.0.0.1:$port/opkg.pub" >/dev/null
 

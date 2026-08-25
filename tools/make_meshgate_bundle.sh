@@ -53,6 +53,8 @@ cp "$public_key" "$bundle_dir/feed/opkg.pub"
 cp "$repo_root/openwrt/meshgate/setup.sh" "$bundle_dir/setup.sh"
 cp "$repo_root/openwrt/meshgate/les-chat-feed.init" \
 	"$bundle_dir/les-chat-feed.init"
+cp "$repo_root/openwrt/meshgate/les-chat-routing.init" \
+	"$bundle_dir/les-chat-routing.init"
 sed \
 	-e 's|@FEED_BASE_URL@|http://127.0.0.1:8088|g' \
 	-e 's|@OPENWRT_RELEASE@|24.10.2|g' \
@@ -64,7 +66,7 @@ chmod 0755 "$bundle_dir/setup.sh" "$bundle_dir/les-chat-feed.init" \
 	cd "$bundle_dir"
 	find feed -type f -print | LC_ALL=C sort > .feed-files
 	# shellcheck disable=SC2046
-	sha256sum setup.sh les-chat-feed.init opkg.pub $(cat .feed-files) \
+	sha256sum setup.sh les-chat-feed.init les-chat-routing.init opkg.pub $(cat .feed-files) \
 		> SHA256SUMS
 	rm .feed-files
 )

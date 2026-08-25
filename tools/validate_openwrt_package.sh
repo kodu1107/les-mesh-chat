@@ -13,6 +13,7 @@ openwrt/feed/README.md
 openwrt/offline/install.sh
 openwrt/meshgate/setup.sh
 openwrt/meshgate/les-chat-feed.init
+openwrt/meshgate/les-chat-routing.init
 openwrt/README.md
 tools/build_openwrt_ipk.sh
 tools/collect_openwrt_runtime_ipks.sh
@@ -57,6 +58,7 @@ sh -n \
 	"$root/openwrt/offline/install.sh" \
 	"$root/openwrt/meshgate/setup.sh" \
 	"$root/openwrt/meshgate/les-chat-feed.init" \
+	"$root/openwrt/meshgate/les-chat-routing.init" \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd" \
 	"$root/openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat"
 

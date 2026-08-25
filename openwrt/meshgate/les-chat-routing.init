@@ -1,0 +1,42 @@
+#!/bin/sh /etc/rc.common
+
+# Keep outgoing LES Mesh Chat HTTP traffic on the HaLow interface when LAN
+# and HaLow use overlapping IPv4 prefixes.
+START=96
+STOP=09
+
+TABLE=1000
+PRIORITY=1000
+INTERFACE=br-ahwlan
+
+mesh_route() {
+	ip -4 route show dev "$INTERFACE" proto kernel scope link 2>/dev/null |
+		awk '$1 ~ /^[0-9]/ { print $1; exit }'
+}
+
+mesh_source() {
+	ip -4 -o addr show dev "$INTERFACE" scope global 2>/dev/null |
+		awk '{ split($4, parts, "/"); print parts[1]; exit }'
+}
+
+start() {
+	local route source
+	route="$(mesh_route)"
+	source="$(mesh_source)"
+	if [ -z "$route" ] || [ -z "$source" ]; then
+		logger -t les-chat-routing \
+			"$INTERFACE has no usable IPv4 route or address"
+		return 1
+	fi
+
+	ip rule del pref "$PRIORITY" 2>/dev/null || true
+	ip route flush table "$TABLE" >/dev/null 2>&1 || true
+	ip route replace table "$TABLE" "$route" \
+		dev "$INTERFACE" src "$source" mtu 1200
+	ip rule add pref "$PRIORITY" from "$source/32" lookup "$TABLE"
+}
+
+stop() {
+	ip rule del pref "$PRIORITY" 2>/dev/null || true
+	ip route flush table "$TABLE" >/dev/null 2>&1 || true
+}

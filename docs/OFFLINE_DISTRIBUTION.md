@@ -45,7 +45,8 @@ zone이나 포트를 바꿔야 한다면 PowerShell에서 실행합니다.
   -Port 8088
 ```
 
-완료되면 스크립트가 각 OpenMANET 노드에서 실행할 명령을 출력합니다.
+완료되면 스크립트가 각 OpenMANET 노드에서 실행할 명령을 출력합니다. MeshGate는
+동시에 겹치는 LAN/HaLow 대역에서 채팅 복제용 outgoing 경로도 자동 설정합니다.
 
 ```sh
 wget -qO- http://10.41.0.1:8088/install.sh | \
