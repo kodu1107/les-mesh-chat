@@ -72,9 +72,9 @@ gh secret set OPKG_SIGNING_PUBLIC_KEY < .secrets/opkg.pub
 그 다음 첫 태그의 예시는 다음과 같습니다.
 
 ```bash
-git tag -a v0.1.1 -m "LES Mesh Chat v0.1.1"
+git tag -a v0.1.2 -m "LES Mesh Chat v0.1.2"
 git push origin main
-git push origin v0.1.1
+git push origin v0.1.2
 ```
 
 태그 워크플로가 끝나면 **Actions**, **Releases**, **Pages**에서 각각 결과를

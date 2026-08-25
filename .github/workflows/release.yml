@@ -142,7 +142,9 @@ jobs:
         run: |
           sdk_host="$RUNNER_TEMP/$SDK_DIR_NAME/staging_dir/host"
           mkdir -p host-tools/bin host-tools/lib
-          cp "$sdk_host/bin/usign" "$sdk_host/bin/.usign.bin" host-tools/bin/
+          cp "$sdk_host/bin/usign" host-tools/bin/usign
+          cp "$sdk_host/bin/.usign.bin" host-tools/bin/usign.bin
+          sed -i 's|\.usign\.bin|usign.bin|g' host-tools/bin/usign
           cp "$sdk_host/lib/ld-linux-x86-64.so.2" \
             "$sdk_host/lib/libc.so.6" \
             "$sdk_host/lib/runas.so" \
@@ -182,7 +184,7 @@ jobs:
         run: |
           test -n "$OPKG_SIGNING_KEY"
           test -n "$OPKG_SIGNING_PUBLIC_KEY"
-          chmod 0755 host-tools/bin/usign host-tools/bin/.usign.bin \
+          chmod 0755 host-tools/bin/usign host-tools/bin/usign.bin \
             host-tools/lib/ld-linux-x86-64.so.2
           printf '%s\n' "$OPKG_SIGNING_KEY" > "$RUNNER_TEMP/opkg.sec"
           printf '%s\n' "$OPKG_SIGNING_PUBLIC_KEY" > "$RUNNER_TEMP/opkg.pub"
