@@ -11,6 +11,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(
+    LESCHAT_WEB_ROOT
+    "${CMAKE_CURRENT_SOURCE_DIR}/web"
+    CACHE PATH
+    "Runtime path containing les-chatd web assets"
+)
+
 # Dependencies are installed in standard system paths.
 # Avoid Ninja relinking during installagion.
 set(CMAKE_SKIP_RPATH ON)
@@ -47,7 +54,7 @@ target_include_directories(
 target_compile_definitions(
     les-chatd
     PRIVATE
-        LESCHAT_WEB_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/web"
+        LESCHAT_WEB_ROOT="${LESCHAT_WEB_ROOT}"
 )
 
 target_link_libraries(

@@ -1,0 +1,51 @@
+#!/bin/sh /etc/rc.common
+
+START=95
+STOP=10
+USE_PROCD=1
+
+SERVICE=/usr/sbin/les-chatd
+NODE_ID_FILE=/etc/les-chat/node-id
+
+load_node_id() {
+	[ -s "$NODE_ID_FILE" ] || return 1
+	tr -d ' \t\r\n' < "$NODE_ID_FILE"
+}
+
+start_service() {
+	config_load les-chat
+
+	config_get_bool enabled main enabled 1
+	[ "$enabled" -eq 1 ] || return 0
+
+	config_get node_id main node_id auto
+	[ "$node_id" = "auto" ] && node_id="$(load_node_id)"
+	[ -n "$node_id" ] || {
+		logger -t les-chatd "node ID is not configured"
+		return 1
+	}
+
+	config_get callsign main callsign auto
+	[ "$callsign" = "auto" ] && callsign="$(hostname)"
+	config_get bind main bind 0.0.0.0
+	config_get port main port 7777
+	config_get discovery_address main discovery_address 255.255.255.255
+	config_get discovery_port main discovery_port 7777
+	config_get database main database /overlay/les-chat/messages.db
+
+	mkdir -p "$(dirname "$database")"
+
+	procd_open_instance
+	procd_set_param command "$SERVICE" \
+		--node-id "$node_id" \
+		--callsign "$callsign" \
+		--bind "$bind" \
+		--port "$port" \
+		--discovery-address "$discovery_address" \
+		--discovery-port "$discovery_port" \
+		--database "$database"
+	procd_set_param respawn 3600 5 5
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}

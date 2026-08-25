@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            cmake \
+            curl \
+            g++ \
+            libevent-dev \
+            libjson-c-dev \
+            libsqlite3-dev \
+            ninja-build \
+            pkg-config \
+            shellcheck
+
+      - name: Validate packaging scripts
+        run: |
+          shellcheck \
+            tools/*.sh \
+            openwrt/feed/install.sh.in \
+            openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat
+          ./tools/validate_openwrt_package.sh
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --parallel 2
+
+      - name: Run CTest
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run two-node integration test
+        run: ./tools/two_node_integration_test.sh ./build/les-chatd

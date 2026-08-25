@@ -1,0 +1,75 @@
+#!/bin/sh
+
+set -eu
+
+feed_base_url='@FEED_BASE_URL@'
+supported_release='@OPENWRT_RELEASE@'
+channel=stable
+
+[ "$#" -eq 0 ] || {
+	echo "usage: $0" >&2
+	exit 2
+}
+
+[ -r /etc/openwrt_release ] || {
+	echo "this installer must run on OpenWrt" >&2
+	exit 1
+}
+
+# shellcheck disable=SC1091
+. /etc/openwrt_release
+
+[ "${DISTRIB_RELEASE:-}" = "$supported_release" ] || {
+	echo "unsupported OpenWrt release: ${DISTRIB_RELEASE:-unknown}" >&2
+	echo "expected: $supported_release" >&2
+	exit 1
+}
+
+package_arch=$(
+	opkg print-architecture | awk '
+		$2 == "aarch64_cortex-a72" || $2 == "aarch64_cortex-a76" {
+			selected = $2
+		}
+		END { print selected }
+	'
+)
+
+[ -n "$package_arch" ] || {
+	echo "this feed supports Raspberry Pi 4 and Raspberry Pi 5 only" >&2
+	exit 1
+}
+
+key_tmp=/tmp/les-chat-opkg.pub
+wget -q "$feed_base_url/opkg.pub" -O "$key_tmp"
+key_id=$(usign -F -p "$key_tmp")
+[ -n "$key_id" ] || {
+	echo "unable to read the LES Mesh Chat signing key" >&2
+	exit 1
+}
+
+cp "$key_tmp" "/etc/opkg/keys/$key_id"
+chmod 0644 "/etc/opkg/keys/$key_id"
+
+feed_url="$feed_base_url/$supported_release/$channel/$package_arch"
+sed -i '/^src\/gz les_chat_/d' /etc/opkg/customfeeds.conf
+printf 'src/gz les_chat_%s %s\n' "$channel" "$feed_url" >> \
+	/etc/opkg/customfeeds.conf
+
+opkg update
+if opkg status les-chatd 2>/dev/null | grep -q '^Status:.* installed'; then
+	opkg upgrade les-chatd
+else
+	opkg install les-chatd
+fi
+
+if [ -x /etc/uci-defaults/99-les-chat ]; then
+	/etc/uci-defaults/99-les-chat
+fi
+
+/etc/init.d/les-chatd enable
+/etc/init.d/les-chatd restart
+
+sleep 1
+wget -qO- http://127.0.0.1:7777/healthz
+echo
+echo "LES Mesh Chat is available on port 7777."

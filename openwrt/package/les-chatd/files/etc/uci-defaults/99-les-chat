@@ -1,0 +1,18 @@
+#!/bin/sh
+
+NODE_DIR=/etc/les-chat
+NODE_ID_FILE="$NODE_DIR/node-id"
+
+mkdir -p "$NODE_DIR"
+
+if [ ! -s "$NODE_ID_FILE" ]; then
+	umask 077
+	{
+		od -An -N8 -tx1 /dev/urandom | tr -d ' \n'
+		echo
+	} > "$NODE_ID_FILE"
+fi
+
+chmod 600 "$NODE_ID_FILE"
+
+exit 0

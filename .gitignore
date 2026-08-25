@@ -1,6 +1,8 @@
 /build/
+/.vscode/
 *.log
 *.db
 *.db-shm
 *.db-wal
-/.vscode/
+/dist/
+/.secrets/

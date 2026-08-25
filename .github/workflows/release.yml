@@ -1,0 +1,187 @@
+name: Release OpenWrt packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  OPENWRT_RELEASE: "24.10.2"
+
+jobs:
+  build-package:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: raspberry-pi-4
+            target: bcm2711
+            arch: aarch64_cortex-a72
+            sdk_dir: openwrt-sdk-24.10.2-bcm27xx-bcm2711_gcc-13.3.0_musl.Linux-x86_64
+          - board: raspberry-pi-5
+            target: bcm2712
+            arch: aarch64_cortex-a76
+            sdk_dir: openwrt-sdk-24.10.2-bcm27xx-bcm2712_gcc-13.3.0_musl.Linux-x86_64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install SDK host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential \
+            bison \
+            clang \
+            curl \
+            file \
+            flex \
+            g++ \
+            gawk \
+            gcc-multilib \
+            gettext \
+            git \
+            libncurses-dev \
+            libssl-dev \
+            python3 \
+            python3-setuptools \
+            rsync \
+            swig \
+            unzip \
+            zlib1g-dev \
+            zstd
+
+      - name: Download OpenWrt SDK
+        env:
+          SDK_DIR_NAME: ${{ matrix.sdk_dir }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          sdk_url="https://downloads.openwrt.org/releases/${OPENWRT_RELEASE}/targets/bcm27xx/${TARGET}/${SDK_DIR_NAME}.tar.zst"
+          curl --fail --location --retry 3 "$sdk_url" --output "$RUNNER_TEMP/sdk.tar.zst"
+          tar --use-compress-program=unzstd -xf "$RUNNER_TEMP/sdk.tar.zst" -C "$RUNNER_TEMP"
+
+      - name: Build IPK
+        env:
+          ARCH: ${{ matrix.arch }}
+          SDK_DIR_NAME: ${{ matrix.sdk_dir }}
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          release=$(sed -n 's/^LESCHAT_RELEASE?=//p' openwrt/package/les-chatd/Makefile)
+          ./tools/build_openwrt_ipk.sh \
+            "$RUNNER_TEMP/$SDK_DIR_NAME" \
+            "dist/$ARCH" \
+            "$version" \
+            "$release"
+
+      - name: Build signed package feed
+        env:
+          ARCH: ${{ matrix.arch }}
+          OPKG_SIGNING_KEY: ${{ secrets.OPKG_SIGNING_KEY }}
+          OPKG_SIGNING_PUBLIC_KEY: ${{ secrets.OPKG_SIGNING_PUBLIC_KEY }}
+          SDK_DIR_NAME: ${{ matrix.sdk_dir }}
+        run: |
+          test -n "$OPKG_SIGNING_KEY"
+          test -n "$OPKG_SIGNING_PUBLIC_KEY"
+          printf '%s\n' "$OPKG_SIGNING_KEY" > "$RUNNER_TEMP/opkg.sec"
+          printf '%s\n' "$OPKG_SIGNING_PUBLIC_KEY" > "$RUNNER_TEMP/opkg.pub"
+          ./tools/make_opkg_feed.sh \
+            "$RUNNER_TEMP/$SDK_DIR_NAME" \
+            "dist/$ARCH" \
+            "feed/$ARCH" \
+            "$RUNNER_TEMP/opkg.sec" \
+            "$RUNNER_TEMP/opkg.pub"
+
+      - name: Upload IPK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ipk-${{ matrix.board }}
+          path: dist
+          if-no-files-found: error
+
+      - name: Upload feed artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: feed-${{ matrix.board }}
+          path: feed
+          if-no-files-found: error
+
+  publish-release:
+    needs: build-package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: ipk-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create checksums
+        working-directory: release-assets
+        run: sha256sum */*.ipk > SHA256SUMS
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release-assets/*/*.ipk \
+            release-assets/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --generate-notes \
+            --title "LES Mesh Chat $GITHUB_REF_NAME"
+
+  prepare-pages:
+    needs: build-package
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download feed artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: feed-*
+          path: site/${{ env.OPENWRT_RELEASE }}/stable
+          merge-multiple: true
+
+      - name: Prepare feed website
+        env:
+          OPKG_SIGNING_PUBLIC_KEY: ${{ secrets.OPKG_SIGNING_PUBLIC_KEY }}
+        run: |
+          test -n "$OPKG_SIGNING_PUBLIC_KEY"
+          printf '%s\n' "$OPKG_SIGNING_PUBLIC_KEY" > site/opkg.pub
+          repo_name=${GITHUB_REPOSITORY#*/}
+          if [ "$repo_name" = "${GITHUB_REPOSITORY_OWNER}.github.io" ]; then
+            feed_base_url="https://${GITHUB_REPOSITORY_OWNER}.github.io"
+          else
+            feed_base_url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}"
+          fi
+          sed \
+            -e "s|@FEED_BASE_URL@|$feed_base_url|g" \
+            -e "s|@OPENWRT_RELEASE@|$OPENWRT_RELEASE|g" \
+            openwrt/feed/install.sh.in > site/install.sh
+          chmod 0755 site/install.sh
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy-pages:
+    needs: prepare-pages
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy signed opkg feed
+        id: deployment
+        uses: actions/deploy-pages@v4
