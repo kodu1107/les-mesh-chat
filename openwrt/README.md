@@ -15,6 +15,8 @@
 
 GitHub Release와 서명된 opkg 피드를 자동 운영하는 방법은
 [`docs/DISTRIBUTION.md`](../docs/DISTRIBUTION.md)에 있습니다.
+인터넷이 없는 장비에 Windows CMD 또는 공용 MeshGate로 배포하는 방법은
+[`docs/OFFLINE_DISTRIBUTION.md`](../docs/OFFLINE_DISTRIBUTION.md)에 있습니다.
 
 ### 수동 빌드
 
@@ -57,7 +59,7 @@ make package/les-chatd/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.0-r2_*.ipk
+opkg install /tmp/les-chatd_0.1.1-r1_*.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```

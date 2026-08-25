@@ -2,7 +2,8 @@
 
 이 저장소는 `v*` 태그가 GitHub에 올라오면 Raspberry Pi 4와 Pi 5용 IPK를
 각각 빌드하고, GitHub Release와 서명된 GitHub Pages opkg 피드를 함께
-갱신하도록 구성되어 있습니다.
+갱신하도록 구성되어 있습니다. 릴리스에는 인터넷이 없는 장비를 위한 아키텍처별
+오프라인 묶음, 공용 MeshGate 피드 묶음, Windows 원클릭 도구도 포함됩니다.
 
 ## 1. GitHub 저장소 준비
 
@@ -71,9 +72,9 @@ gh secret set OPKG_SIGNING_PUBLIC_KEY < .secrets/opkg.pub
 그 다음 첫 태그의 예시는 다음과 같습니다.
 
 ```bash
-git tag -a v0.1.0 -m "LES Mesh Chat v0.1.0"
+git tag -a v0.1.1 -m "LES Mesh Chat v0.1.1"
 git push origin main
-git push origin v0.1.0
+git push origin v0.1.1
 ```
 
 태그 워크플로가 끝나면 **Actions**, **Releases**, **Pages**에서 각각 결과를
@@ -98,3 +99,7 @@ opkg upgrade les-chatd
 
 설치 후 장비별 호출 부호와 메시 네트워크 방화벽 zone 설정은
 [`openwrt/README.md`](../openwrt/README.md)를 따릅니다.
+
+외부 인터넷이 없는 OpenMANET 장비에 Windows 노트북이나 공용 MeshGate를 통해
+배포하는 절차는 [`OFFLINE_DISTRIBUTION.md`](OFFLINE_DISTRIBUTION.md)를
+따릅니다.

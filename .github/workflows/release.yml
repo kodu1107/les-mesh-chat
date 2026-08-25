@@ -88,10 +88,27 @@ jobs:
           test -n "$OPKG_SIGNING_PUBLIC_KEY"
           printf '%s\n' "$OPKG_SIGNING_KEY" > "$RUNNER_TEMP/opkg.sec"
           printf '%s\n' "$OPKG_SIGNING_PUBLIC_KEY" > "$RUNNER_TEMP/opkg.pub"
-          ./tools/make_opkg_feed.sh \
+          ./tools/collect_openwrt_runtime_ipks.sh \
             "$RUNNER_TEMP/$SDK_DIR_NAME" \
             "dist/$ARCH" \
+            "runtime/$ARCH" \
+            "$ARCH"
+          ./tools/make_opkg_feed.sh \
+            "$RUNNER_TEMP/$SDK_DIR_NAME" \
+            "runtime/$ARCH" \
             "feed/$ARCH" \
+            "$RUNNER_TEMP/opkg.sec" \
+            "$RUNNER_TEMP/opkg.pub"
+
+          version=${GITHUB_REF_NAME#v}
+          release=$(sed -n 's/^LESCHAT_RELEASE?=//p' openwrt/package/les-chatd/Makefile)
+          ./tools/make_offline_bundle.sh \
+            "$RUNNER_TEMP/$SDK_DIR_NAME" \
+            "dist/$ARCH" \
+            offline \
+            "$version" \
+            "$release" \
+            "$ARCH" \
             "$RUNNER_TEMP/opkg.sec" \
             "$RUNNER_TEMP/opkg.pub"
 
@@ -109,29 +126,140 @@ jobs:
           path: feed
           if-no-files-found: error
 
-  publish-release:
+      - name: Upload offline installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: offline-${{ matrix.board }}
+          path: |
+            offline/*.tar.gz
+            offline/*.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Stage host signing tool
+        if: matrix.board == 'raspberry-pi-4'
+        env:
+          SDK_DIR_NAME: ${{ matrix.sdk_dir }}
+        run: |
+          sdk_host="$RUNNER_TEMP/$SDK_DIR_NAME/staging_dir/host"
+          mkdir -p host-tools/bin host-tools/lib
+          cp "$sdk_host/bin/usign" "$sdk_host/bin/.usign.bin" host-tools/bin/
+          cp "$sdk_host/lib/ld-linux-x86-64.so.2" \
+            "$sdk_host/lib/libc.so.6" \
+            "$sdk_host/lib/runas.so" \
+            host-tools/lib/
+
+      - name: Upload host signing tool
+        if: matrix.board == 'raspberry-pi-4'
+        uses: actions/upload-artifact@v7
+        with:
+          name: host-usign
+          path: host-tools
+          if-no-files-found: error
+
+  package-meshgate-feed:
     needs: build-package
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download signed feed artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: feed-*
+          path: feeds
+          merge-multiple: true
+
+      - name: Download host signing tool
+        uses: actions/download-artifact@v8
+        with:
+          name: host-usign
+          path: host-tools
+
+      - name: Build signed MeshGate bundle
+        env:
+          OPKG_SIGNING_KEY: ${{ secrets.OPKG_SIGNING_KEY }}
+          OPKG_SIGNING_PUBLIC_KEY: ${{ secrets.OPKG_SIGNING_PUBLIC_KEY }}
+        run: |
+          test -n "$OPKG_SIGNING_KEY"
+          test -n "$OPKG_SIGNING_PUBLIC_KEY"
+          chmod 0755 host-tools/bin/usign host-tools/bin/.usign.bin \
+            host-tools/lib/ld-linux-x86-64.so.2
+          printf '%s\n' "$OPKG_SIGNING_KEY" > "$RUNNER_TEMP/opkg.sec"
+          printf '%s\n' "$OPKG_SIGNING_PUBLIC_KEY" > "$RUNNER_TEMP/opkg.pub"
+          version=${GITHUB_REF_NAME#v}
+          release=$(sed -n 's/^LESCHAT_RELEASE?=//p' openwrt/package/les-chatd/Makefile)
+          ./tools/make_meshgate_bundle.sh \
+            host-tools/bin/usign \
+            feeds \
+            meshgate \
+            "$version" \
+            "$release" \
+            "$RUNNER_TEMP/opkg.sec" \
+            "$RUNNER_TEMP/opkg.pub"
+
+          mkdir -p windows-tools
+          cp tools/windows/*.cmd tools/windows/*.ps1 \
+            docs/OFFLINE_DISTRIBUTION.md windows-tools/
+          (
+            cd windows-tools
+            zip -9 "../meshgate/les-chat-windows-tools-${version}.zip" ./*
+          )
+
+      - name: Upload MeshGate bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: meshgate-feed
+          path: |
+            meshgate/*.tar.gz
+            meshgate/*.tar.gz.sha256
+            meshgate/*.zip
+          if-no-files-found: error
+
+  publish-release:
+    needs:
+      - build-package
+      - package-meshgate-feed
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - name: Download application IPKs
+        uses: actions/download-artifact@v8
         with:
           pattern: ipk-*
-          path: release-assets
+          path: release-assets/ipk
           merge-multiple: true
 
+      - name: Download offline bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: offline-*
+          path: release-assets/offline
+          merge-multiple: true
+
+      - name: Download MeshGate and Windows tools
+        uses: actions/download-artifact@v8
+        with:
+          name: meshgate-feed
+          path: release-assets/distribution
+
       - name: Create checksums
-        working-directory: release-assets
-        run: sha256sum */*.ipk > SHA256SUMS
+        run: |
+          mkdir release-files
+          find release-assets -type f \( -name '*.ipk' -o -name '*.tar.gz' -o -name '*.zip' \) \
+            -exec cp {} release-files/ \;
+          cd release-files
+          sha256sum ./*.ipk ./*.tar.gz ./*.zip > SHA256SUMS
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            release-assets/*/*.ipk \
-            release-assets/SHA256SUMS \
+            release-files/*.ipk \
+            release-files/*.tar.gz \
+            release-files/*.zip \
+            release-files/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" \
             --generate-notes \
             --title "LES Mesh Chat $GITHUB_REF_NAME"

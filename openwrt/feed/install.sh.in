@@ -2,14 +2,25 @@
 
 set -eu
 
-feed_base_url='@FEED_BASE_URL@'
+default_feed_base_url='@FEED_BASE_URL@'
 supported_release='@OPENWRT_RELEASE@'
 channel=stable
+trusted_key_id=9db1776b78018b98
 
-[ "$#" -eq 0 ] || {
-	echo "usage: $0" >&2
+[ "$#" -le 1 ] || {
+	echo "usage: $0 [FEED_BASE_URL]" >&2
 	exit 2
 }
+
+feed_base_url=${1:-$default_feed_base_url}
+
+case "$feed_base_url" in
+	http://*|https://*) ;;
+	*)
+		echo "feed URL must start with http:// or https://" >&2
+		exit 2
+		;;
+esac
 
 [ -r /etc/openwrt_release ] || {
 	echo "this installer must run on OpenWrt" >&2
@@ -42,8 +53,8 @@ package_arch=$(
 key_tmp=/tmp/les-chat-opkg.pub
 wget -q "$feed_base_url/opkg.pub" -O "$key_tmp"
 key_id=$(usign -F -p "$key_tmp")
-[ -n "$key_id" ] || {
-	echo "unable to read the LES Mesh Chat signing key" >&2
+[ "$key_id" = "$trusted_key_id" ] || {
+	echo "untrusted LES Mesh Chat signing key: ${key_id:-unreadable}" >&2
 	exit 1
 }
 

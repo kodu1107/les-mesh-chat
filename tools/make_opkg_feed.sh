@@ -40,6 +40,8 @@ mkhash=$sdk_dir/staging_dir/host/bin/mkhash
 	exit 1
 }
 
+signing_key=$(CDPATH='' cd -- "$(dirname -- "$signing_key")" && pwd)/$(basename "$signing_key")
+
 mkdir -p "$output_dir"
 
 found_ipk=0
@@ -76,6 +78,7 @@ if [ -n "$public_key" ]; then
 		echo "public key is missing: $public_key" >&2
 		exit 1
 	}
+	public_key=$(CDPATH='' cd -- "$(dirname -- "$public_key")" && pwd)/$(basename "$public_key")
 	"$usign" -V -m "$output_dir/Packages" -p "$public_key" \
 		-x "$output_dir/Packages.sig"
 fi

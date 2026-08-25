@@ -32,6 +32,9 @@ jobs:
           shellcheck \
             tools/*.sh \
             openwrt/feed/install.sh.in \
+            openwrt/offline/install.sh \
+            openwrt/meshgate/setup.sh \
+            openwrt/meshgate/les-chat-feed.init \
             openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat
           ./tools/validate_openwrt_package.sh
 
@@ -45,3 +48,27 @@ jobs:
 
       - name: Run two-node integration test
         run: ./tools/two_node_integration_test.sh ./build/les-chatd
+
+  windows-scripts:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Parse PowerShell installers
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem tools/windows/*.ps1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref]$tokens,
+              [ref]$parseErrors
+            )
+            if ($parseErrors.Count -gt 0) {
+              $failed = $true
+              $parseErrors | ForEach-Object { Write-Error $_ }
+            }
+          }
+          if ($failed) { exit 1 }
