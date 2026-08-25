@@ -29,6 +29,9 @@ void print_help(const char* program) {
         << "  --discovery-address ADDRESS\n"
         << "                    UDP announce destination\n"
         << "                    Default: 255.255.255.255\n"
+        << "  --discovery-interface NAME\n"
+        << "                    UDP announce egress interface\n"
+        << "                    Default: automatic routing\n"
         << "  --discovery-port PORT\n"
         << "                    UDP discovery port\n"
         << "                    Default: 7777\n"
@@ -111,6 +114,7 @@ int main(int argc, char* argv[]) {
     std::string bind_address{"127.0.0.1"};
     std::uint16_t port{7777};
     std::string discovery_address{"255.255.255.255"};
+    std::string discovery_interface;
     std::uint16_t discovery_port{7777};
     std::string database_path;
 
@@ -179,6 +183,18 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
+            if (argument == "--discovery-interface") {
+                discovery_interface = read_argument_value(
+                    index, argc, argv, argument
+                );
+                if (discovery_interface.empty()) {
+                    throw std::runtime_error(
+                        "Discovery interface cannot be empty"
+                    );
+                }
+                continue;
+            }
+
             if (argument == "--database") {
                 database_path = read_argument_value(
                     index, argc, argv, argument
@@ -212,6 +228,7 @@ int main(int argc, char* argv[]) {
             std::move(bind_address),
             port,
             std::move(discovery_address),
+            std::move(discovery_interface),
             discovery_port,
             std::move(database_path)
         };

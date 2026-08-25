@@ -59,7 +59,7 @@ make package/les-chatd/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.4-r1_*.ipk
+opkg install /tmp/les-chatd_0.1.5-r1_*.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```
@@ -79,12 +79,19 @@ opkg install /tmp/les-chatd_0.1.4-r1_*.ipk
 ```bash
 uci set les-chat.main.callsign='Bolt'
 uci set les-chat.main.bind='0.0.0.0'
+uci set les-chat.main.discovery_interface='br-ahwlan'
 uci set les-chat.main.database='/overlay/les-chat/messages.db'
 uci commit les-chat
 /etc/init.d/les-chatd restart
 ```
 
 `node_id 'auto'`는 최초 초기화 시 `/etc/les-chat/node-id`에 생성된 안정적인 ID를 사용합니다. 두 장비가 같은 node ID 파일을 공유하지 않도록 합니다.
+
+`discovery_interface 'auto'`는 OpenMANET의 `br-ahwlan`이 존재하면 UDP
+announce 송신 인터페이스로 사용합니다. 같은 IP 대역이 LAN과 HaLow에 동시에
+설정된 MeshGate에서는 `br-ahwlan`을 명시하면 커널의 모호한 broadcast 경로를
+피할 수 있습니다. 인터페이스나 경로가 일시적으로 없어 announce가 실패해도
+웹/API와 메시지 저장 서비스는 계속 실행되고 5초마다 발견을 재시도합니다.
 
 ## 방화벽
 

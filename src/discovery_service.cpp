@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <event2/event.h>
 #include <event2/util.h>
+#include <net/if.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -18,6 +19,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -31,12 +33,14 @@ DiscoveryService::DiscoveryService(
     NodeIdentity identity,
     std::uint16_t http_port,
     std::string discovery_address,
+    std::string discovery_interface,
     std::uint16_t discovery_port
 )
     : registry_(registry),
       identity_(std::move(identity)),
       http_port_(http_port),
       discovery_address_(std::move(discovery_address)),
+      discovery_interface_(std::move(discovery_interface)),
       discovery_port_(discovery_port) {
     try {
         socket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
@@ -87,7 +91,7 @@ DiscoveryService::DiscoveryService(
             event_add(announce_event_, &interval) != 0) {
             throw std::runtime_error("Failed to activate discovery events");
         }
-        send_announce();
+        announce();
     } catch (...) {
         close_resources();
         throw;
@@ -126,10 +130,24 @@ void DiscoveryService::receive_callback(
 void DiscoveryService::announce_callback(
     int, short, void* context
 ) noexcept {
+    static_cast<DiscoveryService*>(context)->announce();
+}
+
+void DiscoveryService::announce() noexcept {
     try {
-        static_cast<DiscoveryService*>(context)->send_announce();
+        send_announce();
+        if (announce_failed_) {
+            std::cerr << "Discovery announce recovered\n";
+        }
+        announce_failed_ = false;
     } catch (const std::exception& error) {
-        std::cerr << "Discovery announce error: " << error.what() << '\n';
+        if (!announce_failed_) {
+            std::cerr
+                << "Discovery announce error: "
+                << error.what()
+                << '\n';
+        }
+        announce_failed_ = true;
     }
 }
 
@@ -228,13 +246,73 @@ void DiscoveryService::send_announce() {
                   &destination.sin_addr) != 1) {
         throw std::runtime_error("Invalid discovery IPv4 address");
     }
-    const ssize_t sent = sendto(
-        socket_, payload.data(), payload.size(), 0,
-        reinterpret_cast<sockaddr*>(&destination), sizeof(destination)
-    );
-    if (sent < 0 || static_cast<std::size_t>(sent) != payload.size()) {
+    ssize_t sent{-1};
+    if (discovery_interface_.empty()) {
+        sent = sendto(
+            socket_, payload.data(), payload.size(), 0,
+            reinterpret_cast<sockaddr*>(&destination), sizeof(destination)
+        );
+    } else {
+        const unsigned int interface_index =
+            if_nametoindex(discovery_interface_.c_str());
+        if (interface_index == 0U) {
+            throw std::runtime_error(
+                "Discovery interface is unavailable: " +
+                discovery_interface_
+            );
+        }
+        if (interface_index > static_cast<unsigned int>(
+                std::numeric_limits<int>::max()
+            )) {
+            throw std::runtime_error(
+                "Discovery interface index is out of range"
+            );
+        }
+
+        iovec payload_buffer{};
+        payload_buffer.iov_base = const_cast<char*>(payload.data());
+        payload_buffer.iov_len = payload.size();
+
+        alignas(cmsghdr)
+        std::array<unsigned char, CMSG_SPACE(sizeof(in_pktinfo))>
+            control_buffer{};
+        msghdr message{};
+        message.msg_name = &destination;
+        message.msg_namelen = sizeof(destination);
+        message.msg_iov = &payload_buffer;
+        message.msg_iovlen = 1;
+        message.msg_control = control_buffer.data();
+        message.msg_controllen = control_buffer.size();
+
+        cmsghdr* control_message = CMSG_FIRSTHDR(&message);
+        if (control_message == nullptr) {
+            throw std::runtime_error(
+                "Failed to configure discovery interface"
+            );
+        }
+        control_message->cmsg_level = IPPROTO_IP;
+        control_message->cmsg_type = IP_PKTINFO;
+        control_message->cmsg_len = CMSG_LEN(sizeof(in_pktinfo));
+
+        in_pktinfo packet_info{};
+        packet_info.ipi_ifindex = static_cast<int>(interface_index);
+        std::memcpy(
+            CMSG_DATA(control_message),
+            &packet_info,
+            sizeof(packet_info)
+        );
+
+        sent = sendmsg(socket_, &message, 0);
+    }
+    if (sent < 0) {
         throw std::runtime_error(
-            std::string{"sendto failed: "} + std::strerror(errno)
+            std::string{"Discovery datagram send failed: "} +
+            std::strerror(errno)
+        );
+    }
+    if (static_cast<std::size_t>(sent) != payload.size()) {
+        throw std::runtime_error(
+            "Discovery datagram was not sent completely"
         );
     }
 }

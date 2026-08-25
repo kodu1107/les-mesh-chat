@@ -20,6 +20,7 @@ public:
         NodeIdentity identity,
         std::uint16_t http_port,
         std::string discovery_address,
+        std::string discovery_interface,
         std::uint16_t discovery_port
     );
     ~DiscoveryService();
@@ -42,6 +43,7 @@ private:
     ) noexcept;
 
     void receive_announcements();
+    void announce() noexcept;
     void send_announce();
     void close_resources() noexcept;
 
@@ -49,7 +51,9 @@ private:
     NodeIdentity identity_;
     std::uint16_t http_port_;
     std::string discovery_address_;
+    std::string discovery_interface_;
     std::uint16_t discovery_port_;
+    bool announce_failed_{false};
     int socket_{-1};
     event* receive_event_{nullptr};
     event* announce_event_{nullptr};

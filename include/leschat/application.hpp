@@ -30,6 +30,7 @@ public:
         std::string bind_address,
         std::uint16_t port,
         std::string discovery_address,
+        std::string discovery_interface,
         std::uint16_t discovery_port,
         std::string database_path
     );

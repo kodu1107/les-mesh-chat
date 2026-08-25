@@ -28,6 +28,7 @@ Application::Application(
     std::string bind_address,
     std::uint16_t port,
     std::string discovery_address,
+    std::string discovery_interface,
     std::uint16_t discovery_port,
     std::string database_path
 )
@@ -51,6 +52,7 @@ Application::Application(
         identity_,
         port_,
         std::move(discovery_address),
+        std::move(discovery_interface),
         discovery_port
     );
     replication_service_ = std::make_unique<ReplicationService>(

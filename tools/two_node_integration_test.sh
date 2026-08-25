@@ -18,12 +18,15 @@ binary=$1
 test_dir=$(mktemp -d /tmp/les-chat-integration.XXXXXX)
 node_a_pid=''
 node_b_pid=''
+failure_node_pid=''
 
 cleanup() {
 	[ -z "$node_a_pid" ] || kill "$node_a_pid" 2>/dev/null || true
 	[ -z "$node_b_pid" ] || kill "$node_b_pid" 2>/dev/null || true
+	[ -z "$failure_node_pid" ] || kill "$failure_node_pid" 2>/dev/null || true
 	[ -z "$node_a_pid" ] || wait "$node_a_pid" 2>/dev/null || true
 	[ -z "$node_b_pid" ] || wait "$node_b_pid" 2>/dev/null || true
+	[ -z "$failure_node_pid" ] || wait "$failure_node_pid" 2>/dev/null || true
 	rm -rf -- "$test_dir"
 }
 
@@ -52,11 +55,41 @@ wait_for_text() {
 trap cleanup EXIT HUP INT TERM
 
 "$binary" \
+	--node-id integration-failure-node \
+	--callsign FailureTest \
+	--bind 127.0.0.1 \
+	--port 18779 \
+	--discovery-address 127.255.255.255 \
+	--discovery-interface les-chat-missing0 \
+	--discovery-port 19779 \
+	--database "$test_dir/failure-node.db" \
+	>"$test_dir/failure-node.log" 2>&1 &
+failure_node_pid=$!
+
+if ! wait_for_text http://127.0.0.1:18779/healthz '"status":"ok"'; then
+	sed -n '1,200p' "$test_dir/failure-node.log" >&2 || true
+	echo "discovery send failure stopped the HTTP service" >&2
+	exit 1
+fi
+if ! grep -Fq \
+	'Discovery interface is unavailable: les-chat-missing0' \
+	"$test_dir/failure-node.log"; then
+	sed -n '1,200p' "$test_dir/failure-node.log" >&2 || true
+	echo "missing discovery interface was not diagnosed" >&2
+	exit 1
+fi
+
+kill "$failure_node_pid" 2>/dev/null || true
+wait "$failure_node_pid" 2>/dev/null || true
+failure_node_pid=''
+
+"$binary" \
 	--node-id integration-node-a \
 	--callsign Alpha \
 	--bind 127.0.0.1 \
 	--port 18777 \
 	--discovery-address 127.255.255.255 \
+	--discovery-interface lo \
 	--discovery-port 19777 \
 	--database "$test_dir/node-a.db" \
 	>"$test_dir/node-a.log" 2>&1 &
@@ -68,6 +101,7 @@ node_a_pid=$!
 	--bind 127.0.0.1 \
 	--port 18778 \
 	--discovery-address 127.255.255.255 \
+	--discovery-interface lo \
 	--discovery-port 19777 \
 	--database "$test_dir/node-b.db" \
 	>"$test_dir/node-b.log" 2>&1 &

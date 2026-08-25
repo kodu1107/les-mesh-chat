@@ -12,6 +12,15 @@ load_node_id() {
 	tr -d ' \t\r\n' < "$NODE_ID_FILE"
 }
 
+detect_discovery_interface() {
+	if [ -e /sys/class/net/br-ahwlan ]; then
+		echo br-ahwlan
+		return 0
+	fi
+
+	return 1
+}
+
 start_service() {
 	config_load les-chat
 
@@ -30,6 +39,10 @@ start_service() {
 	config_get bind main bind 0.0.0.0
 	config_get port main port 7777
 	config_get discovery_address main discovery_address 255.255.255.255
+	config_get discovery_interface main discovery_interface auto
+	if [ "$discovery_interface" = "auto" ]; then
+		discovery_interface="$(detect_discovery_interface)"
+	fi
 	config_get discovery_port main discovery_port 7777
 	config_get database main database /overlay/les-chat/messages.db
 
@@ -44,6 +57,8 @@ start_service() {
 		--discovery-address "$discovery_address" \
 		--discovery-port "$discovery_port" \
 		--database "$database"
+	[ -z "$discovery_interface" ] || procd_append_param command \
+		--discovery-interface "$discovery_interface"
 	procd_set_param respawn 3600 5 5
 	procd_set_param stdout 1
 	procd_set_param stderr 1

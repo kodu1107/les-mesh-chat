@@ -29,6 +29,9 @@ Run a node:
     --database data/node-a.db
 ```
 
+On an OpenMANET node with overlapping LAN and HaLow routes, add
+`--discovery-interface br-ahwlan` to select the mesh interface explicitly.
+
 Open <http://127.0.0.1:7777/> in a browser.
 
 ## OpenWrt packages

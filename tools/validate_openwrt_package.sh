@@ -36,6 +36,8 @@ done
 
 grep -q 'opkg install' "$root/openwrt/README.md"
 grep -q -- '--database' "$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
+grep -q -- '--discovery-interface' \
+	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
 grep -q '^PKG_LICENSE:=MIT$' "$root/openwrt/package/les-chatd/Makefile"
 grep -q '^PKG_LICENSE_FILES:=LICENSE$' "$root/openwrt/package/les-chatd/Makefile"
 grep -q '^PKG_BUILD_DEPENDS:=libevent2 libjson-c sqlite3$' \
