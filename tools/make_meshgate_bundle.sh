@@ -37,10 +37,10 @@ for arch in aarch64_cortex-a72 aarch64_cortex-a76; do
 	}
 done
 
-[ ! -e "$bundle_dir" ] && [ ! -e "$archive" ] || {
+if [ -e "$bundle_dir" ] || [ -e "$archive" ]; then
 	echo "MeshGate bundle output already exists: $bundle_name" >&2
 	exit 1
-}
+fi
 
 mkdir -p "$bundle_dir/feed/24.10.2/stable" \
 	"$bundle_dir/feed"

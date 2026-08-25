@@ -19,7 +19,9 @@ trusted_key_id=9db1776b78018b98
 case "$port" in
 	''|*[!0-9]*) usage ;;
 esac
-[ "$port" -ge 1 ] && [ "$port" -le 65535 ] || usage
+if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+	usage
+fi
 
 case "$firewall_zone" in
 	''|*[!A-Za-z0-9_-]*)

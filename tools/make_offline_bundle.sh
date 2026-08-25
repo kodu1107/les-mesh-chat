@@ -38,10 +38,10 @@ archive=$output_dir/$bundle_name.tar.gz
 	exit 1
 }
 
-[ ! -e "$bundle_dir" ] && [ ! -e "$archive" ] || {
+if [ -e "$bundle_dir" ] || [ -e "$archive" ]; then
 	echo "offline bundle output already exists: $bundle_name" >&2
 	exit 1
-}
+fi
 
 mkdir -p "$bundle_dir/packages"
 cp "$repo_root/openwrt/offline/install.sh" "$bundle_dir/install.sh"
