@@ -13,7 +13,8 @@ Windows 노트북이 GitHub Release에서 서명된 묶음을 받은 뒤, SSH로
 `Install-LES-Chat.cmd`를 더블클릭하고 다음 값을 입력합니다.
 
 1. OpenMANET 장비의 IP 주소(예: `10.41.0.225`)
-2. 호출 부호. 자동값을 유지하려면 비워 둡니다.
+2. 닉네임(호출 부호). 비워 두면 설치는 진행되지만 장비 hostname을 임시로
+   사용하고 LuCI에 닉네임 설정 경고가 표시됩니다.
 
 스크립트가 SSH로 Pi 4/Pi 5와 OpenWrt 버전을 판별하고, 맞는 오프라인 묶음을
 노트북으로 내려받아 장비에 복사합니다. 장비에서는 서명과 모든 파일의 SHA-256을
@@ -59,6 +60,11 @@ wget -qO- http://10.41.0.1:8088/install.sh | \
 인터넷이 필요하지 않으며 설치 중 OpenMANET/OpenWrt 외부 피드에도 접속하지
 않습니다. 새 릴리스를 배포할 때 관리자는 MeshGate 동기화 CMD를 다시 실행하고,
 각 노드에서 위 설치 명령을 다시 실행하면 업그레이드됩니다.
+
+패키지 업데이트는 `/etc/les-chat/node-id`와 `/etc/les-chat/callsign`을
+보존하므로, 이미 설정한 Node ID와 닉네임을 다시 입력할 필요가 없습니다.
+LuCI에서 daemon이 중지된 경우 상단의 **Start service** 또는 **Reconnect**
+버튼으로 재시작할 수 있습니다.
 
 ## 릴리스에 포함되는 파일
 

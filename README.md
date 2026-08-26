@@ -52,6 +52,10 @@ feed. The one-time GitHub and signing-key setup is documented in
 [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Development builds should not be
 installed on unattended nodes.
 
+The current published release is [v0.1.15](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.15).
+It includes native LuCI Chat/Peers/Status/Settings screens, persistent Node ID
+recovery, and a Start/Reconnect action when `les-chatd` is stopped.
+
 ## License
 
 LES Mesh Chat is licensed under the [MIT License](LICENSE). Dependency notices

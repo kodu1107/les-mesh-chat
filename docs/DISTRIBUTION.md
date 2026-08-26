@@ -56,7 +56,7 @@ gh secret set OPKG_SIGNING_PUBLIC_KEY < .secrets/opkg.pub
 **GitHub Actions**로 선택합니다. 배포 워크플로는 별도의 Pages 브랜치를 만들지
 않고 Actions가 생성한 사이트를 바로 배포합니다.
 
-## 5. 첫 릴리스
+## 5. 릴리스 만들기
 
 릴리스 태그를 만들기 전에 다음 세 버전이 일치하는지 확인합니다.
 
@@ -69,16 +69,21 @@ gh secret set OPKG_SIGNING_PUBLIC_KEY < .secrets/opkg.pub
 버전을 올리면 일반적으로 패키지 release를 `1`로 되돌립니다.
 
 검증 후 변경사항을 커밋하고 원격에 올리는 작업은 직접 승인한 시점에 수행합니다.
-그 다음 첫 태그의 예시는 다음과 같습니다.
+그 다음 태그의 예시는 다음과 같습니다.
 
 ```bash
-git tag -a v0.1.5 -m "LES Mesh Chat v0.1.5"
+RELEASE=0.1.16
+git tag -a "v${RELEASE}" -m "LES Mesh Chat ${RELEASE}"
 git push origin main
-git push origin v0.1.5
+git push origin "v${RELEASE}"
 ```
 
 태그 워크플로가 끝나면 **Actions**, **Releases**, **Pages**에서 각각 결과를
 확인합니다.
+
+현재 공개된 예시는 [v0.1.15 release](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.15)입니다.
+Release에는 Pi 4/Pi 5 daemon IPK, LuCI IPK, signed feed, MeshGate bundle,
+오프라인 bundle, Windows 도구와 `SHA256SUMS`가 포함됩니다.
 
 ## 6. OpenWrt 장비에서 한 번에 설치
 

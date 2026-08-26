@@ -65,8 +65,8 @@ make package/luci-app-les-chat/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.13-r1_*.ipk
-opkg install /tmp/luci-app-les-chat_0.1.13-r1_all.ipk
+opkg install /tmp/les-chatd_0.1.15-*_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.15-*_all.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```
@@ -172,8 +172,12 @@ curl -s http://127.0.0.1:7777/healthz
 curl -s http://127.0.0.1:7777/api/v1/peers
 ```
 
-LuCI에서는 **Services → LES Mesh Chat** 메뉴로 Status, Peers, Settings, Chat에
-들어갑니다. Chat은 장비 호스트명과 UCI HTTP 포트의 기존 웹 UI를 엽니다.
+LuCI에서는 **Services → LES Mesh Chat** 메뉴로 Chat, Peers, Status, Settings에
+들어갑니다. Chat은 LuCI 안에서 동작하는 native 화면이며, daemon이 중지된
+경우 상단의 **Start service** 또는 **Reconnect** 버튼으로 재시작할 수 있습니다.
+daemon의 독립 웹 화면은 장비의 `http://<node-address>:7777/`에서 계속 사용할
+수 있습니다.
 
-패키지 업데이트 시 새 IPK를 설치하면 기존 `/overlay/les-chat/messages.db`와 node ID는 유지됩니다.
+패키지 업데이트 시 새 IPK를 설치하면 기존 `/overlay/les-chat/messages.db`,
+`/etc/les-chat/node-id`, `/etc/les-chat/callsign`은 유지됩니다.
 `les-chatd`와 `luci-app-les-chat`는 같은 피드에 있지만 따로 업그레이드할 수 있습니다.

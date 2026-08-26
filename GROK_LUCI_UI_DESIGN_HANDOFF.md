@@ -1,16 +1,24 @@
 # Grok 인수인계: LES Mesh Chat LuCI UI 디자인 개선
 
+> 이 문서는 v0.1.8 당시의 UI 디자인 인수인계 기록입니다. 현재 공개 버전은
+> v0.1.15이며, Chat/Peers/Status/Settings는 LuCI native 화면으로 구현되어
+> 있습니다. 아래의 iframe 설명과 디자인 목표는 변경 이력과 향후 개선 아이디어를
+> 구분해서 읽어야 하며, 현재 설치·배포 절차는 `README.md`와 `docs/`를 기준으로
+> 합니다.
+
 ## 1. 목표
 
 OpenMANET LuCI 안에서 보이는 LES Mesh Chat 화면의 사용성과 시각 디자인을 개선한다.
 현재 기능은 정상 동작하므로, 네트워크 프로토콜과 메시지 저장 기능을 변경하지 않고 UI/UX를 개선하는 것이 목표다.
 
-특히 현재 `Chat` 메뉴가 기존 채팅 웹 UI를 LuCI 페이지 안의 `iframe`으로 표시하는 구조라서, 화면이 어색하고 LuCI와 분리된 느낌이 난다. 이 부분을 자연스럽게 통합된 제품 화면처럼 보이도록 개선한다.
+이 문서가 작성될 당시 `Chat` 메뉴가 기존 채팅 웹 UI를 LuCI 페이지 안의
+`iframe`으로 표시해서 화면이 어색하고 LuCI와 분리된 느낌이 났다. 현재는
+native LuCI 화면으로 교체되었으므로, 이후 개선에서는 이 통합 구조를 유지한다.
 
-## 2. 현재 구조
+## 2. 당시 구조와 현재 구조
 
 - 저장소: `kodu1107/les-mesh-chat`
-- 현재 버전: `v0.1.8`
+- 당시 기준 버전: `v0.1.8` (현재 공개 버전: `v0.1.15`)
 - OpenWrt 대상: Raspberry Pi 4/5 OpenMANET
 - LuCI 패키지: `openwrt/package/luci-app-les-chat/`
 - 서비스 데몬: `les-chatd`
@@ -27,7 +35,7 @@ OpenMANET LuCI 안에서 보이는 LES Mesh Chat 화면의 사용성과 시각 �
 - `files/usr/share/luci/menu.d/luci-app-les-chat.json`
 - `files/usr/libexec/rpcd/luci.leschat`
 
-현재 `chat.js`는 대략 다음 방식이다.
+v0.1.8 당시 `chat.js`는 대략 다음 방식이었다.
 
 ```javascript
 E('iframe', {
@@ -128,9 +136,10 @@ E('iframe', {
 ```text
 너는 OpenWrt LuCI와 저사양 임베디드 장치 UI를 설계하는 시니어 프론트엔드 디자이너/개발자다.
 
-GitHub 저장소 kodu1107/les-mesh-chat의 v0.1.8 LuCI 앱을 개선해줘.
-현재 Chat 메뉴는 les-chatd의 http://<node-ip>:7777/ 채팅 웹 UI를 LuCI 페이지 안 iframe으로 표시한다.
-이 구조가 LuCI와 분리되어 보이고 화면 디자인이 마음에 들지 않는다.
+GitHub 저장소 kodu1107/les-mesh-chat의 v0.1.15 LuCI 앱을 개선해줘.
+현재 Chat 메뉴는 les-chatd API를 호출하는 native LuCI 화면이다. 과거에는
+http://<node-ip>:7777/ 채팅 웹 UI를 LuCI 페이지 안 iframe으로 표시했으며,
+그 구조가 LuCI와 분리되어 보였기 때문에 native 통합 화면으로 교체되었다.
 
 목표:
 1. Chat, Peers, Status, Settings 화면을 일관된 디자인으로 만든다.
