@@ -1,24 +1,90 @@
 # LES Mesh Chat
 
-LES Mesh Chat is an offline-first distributed chat service for OpenMANET and
-OpenWrt nodes. Peers discover each other over UDP, replicate messages over
-HTTP, recover missed messages after reconnecting, and keep a bounded SQLite
-history.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![C++ Standard](https://img.shields.io/badge/C%2B%2B-20-brightgreen.svg)](CMakeLists.txt)
+[![Target Platform](https://img.shields.io/badge/Platform-OpenMANET%20%7C%20OpenWrt%2024.10-orange.svg)](openwrt/README.md)
+[![Release](https://img.shields.io/badge/Release-v0.1.15-informational.svg)](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.15)
 
-## Native build
+**LES Mesh Chat** is an offline-first, decentralized P2P text communication system designed for **OpenMANET** and **OpenWrt** routers over **802.11ah HaLow** and **BATMAN-adv** mesh networks. It operates entirely without internet access, DNS, or central servers.
 
-Required development packages are CMake, a C++20 compiler, libevent, json-c,
-SQLite 3, and pkg-config.
+---
 
-```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure
+## 🌟 Key Features
+
+* **🌐 Offline-First & Fully Decentralized:** Operates purely in ad-hoc mesh environments without reliance on external cloud or gateway infrastructure.
+* **🔍 UDP Peer Discovery:** Automatically discovers neighboring mesh nodes via periodic UDP broadcasts (port 7777).
+* **⚡ Instant Replication & Catch-up Sync:** Pushes new messages to active peers immediately via HTTP POST; recovers missed sequence ranges automatically upon node reconnection.
+* **💾 Bounded SQLite Store:** Persistent message storage strictly bounded to 10 MiB with FIFO trimming and deduplication `(origin_node_id, sequence)`.
+* **🖥️ Dual UI Modes:**
+  * **Built-in Web UI:** Standalone browser-accessible dark UI hosted directly on `http://<node-ip>:7777/` (SSE-driven real-time updates).
+  * **Native LuCI Integration:** Integrated OpenWrt admin dashboard (`luci-app-les-chat`) with Chat, Peers, Status, and Settings views.
+* **⏱️ MeshGate Time Synchronization:** Synchronizes local clocks or adjusts message timestamp offsets against an internal MeshGate authority without NTP.
+* **🔀 Overlapping IP & Mesh Routing Safety:** Outgoing HTTP replication and sync traffic are explicitly bound to the mesh interface (e.g. `br-ahwlan`), preventing packet loss in overlapping LAN/HaLow subnets.
+
+---
+
+## 🏗️ Architecture
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                      Client Device                     │
+│  [Browser: http://<ip>:7777]  OR  [OpenWrt LuCI App]  │
+└───────────────────────────┬────────────────────────────┘
+                            │ HTTP API / SSE Events
+┌───────────────────────────▼────────────────────────────┐
+│                    les-chatd (C++20)                   │
+│ ┌──────────────────────┐      ┌──────────────────────┐ │
+│ │  HttpApi & Web UI    │      │  DiscoveryService    │ │
+│ │  (libevent HTTP)     │      │  (UDP 7777 Announce) │ │
+│ └──────────┬───────────┘      └──────────┬───────────┘ │
+│            │                             │             │
+│ ┌──────────▼───────────┐      ┌──────────▼───────────┐ │
+│ │  MessageService      │◄────►│  PeerRegistry        │ │
+│ │  & EventStream (SSE) │      │  (Node / Peer state) │ │
+│ └──────────┬───────────┘      └──────────┬───────────┘ │
+│            │                             │             │
+│ ┌──────────▼───────────┐      ┌──────────▼───────────┐ │
+│ │  MessageStore        │      │ Replication & Sync   │ │
+│ │  (SQLite3 / 10MB)    │      │ (Outbound HTTP)      │ │
+│ └──────────────────────┘      └──────────┬───────────┘ │
+└──────────────────────────────────────────┼─────────────┘
+                                           │ UDP / TCP 7777
+┌──────────────────────────────────────────▼─────────────┐
+│             BATMAN-adv / 802.11ah HaLow Mesh           │
+│                 (Remote les-chatd Peers)               │
+└────────────────────────────────────────────────────────┘
 ```
 
-Run a node:
+---
+
+## 🚀 Quick Start (Native Build)
+
+### Prerequisites
+
+* C++20 compatible compiler (GCC 13+ or Clang 16+)
+* CMake 3.20+
+* Ninja build system
+* `pkg-config`
+* Libraries: `libevent`, `json-c`, `sqlite3`
+
+On Debian/Ubuntu:
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+    libevent-dev libjson-c-dev libsqlite3-dev
+```
+
+### Build & Run
 
 ```bash
+# 1. Configure and build
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel $(nproc)
+
+# 2. Run unit tests
+ctest --test-dir build --output-on-failure
+
+# 3. Start a local node
 ./build/les-chatd \
     --node-id node-a \
     --callsign Alpha \
@@ -29,34 +95,81 @@ Run a node:
     --database data/node-a.db
 ```
 
-On an OpenMANET node with overlapping LAN and HaLow routes, add
-`--discovery-interface br-ahwlan` to select the mesh interface explicitly.
-The same interface is used as the local source address for outgoing peer
-replication and synchronization HTTP connections, so overlapping LAN routes
-do not make chat traffic one-way.
+Open **http://127.0.0.1:7777/** in your web browser.
 
-Open <http://127.0.0.1:7777/> in a browser.
+---
 
-## OpenWrt packages
+## 📦 OpenWrt / OpenMANET Deployment
 
-The package definition, SDK build instructions, service configuration, LuCI
-app, and firewall notes are in [openwrt/README.md](openwrt/README.md).
-Raspberry Pi 4 and Raspberry Pi 5 require separate daemon IPKs. The LuCI
-package is architecture-independent (`all`):
+Target hardware architectures:
+* **Raspberry Pi 4:** `bcm27xx/bcm2711` (`aarch64_cortex-a72`)
+* **Raspberry Pi 5:** `bcm27xx/bcm2712` (`aarch64_cortex-a76`)
+* **LuCI App:** Architecture-independent (`all`)
 
-- Raspberry Pi 4: `bcm27xx/bcm2711`, `aarch64_cortex-a72`
-- Raspberry Pi 5: `bcm27xx/bcm2712`, `aarch64_cortex-a76`
+### Installation Options
 
-Tagged releases are intended to publish both IPKs and update the signed opkg
-feed. The one-time GitHub and signing-key setup is documented in
-[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Development builds should not be
-installed on unattended nodes.
+| Method | Target Environment | Documentation |
+|---|---|---|
+| **Online Opkg Feed** | Devices with internet access or GitHub Pages access | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) |
+| **Offline Windows Tool** | Isolated devices via SSH from a Windows laptop | [docs/OFFLINE_DISTRIBUTION.md](docs/OFFLINE_DISTRIBUTION.md) |
+| **MeshGate Internal Feed** | Air-gapped mesh nodes via central MeshGate node (`:8088`) | [docs/OFFLINE_DISTRIBUTION.md](docs/OFFLINE_DISTRIBUTION.md) |
+| **Manual SDK Build** | Building custom IPK packages directly from OpenWrt SDK | [openwrt/README.md](openwrt/README.md) |
 
-The current published release is [v0.1.15](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.15).
-It includes native LuCI Chat/Peers/Status/Settings screens, persistent Node ID
-recovery, and a Start/Reconnect action when `les-chatd` is stopped.
+#### One-Line Installation (Online Feed)
+```bash
+wget -qO- https://YOUR_ACCOUNT.github.io/les-mesh-chat/install.sh | sh
+```
 
-## License
+---
 
-LES Mesh Chat is licensed under the [MIT License](LICENSE). Dependency notices
-are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## ⚙️ Configuration
+
+OpenWrt configuration is managed via UCI (`/etc/config/les-chat`):
+
+```bash
+# Set display callsign (nickname)
+uci set les-chat.main.callsign='Bolt'
+
+# Bind explicit mesh egress interface (recommended for HaLow nodes)
+uci set les-chat.main.discovery_interface='br-ahwlan'
+
+# Persistent database storage path
+uci set les-chat.main.database='/overlay/les-chat/messages.db'
+
+# Commit and restart daemon
+uci commit les-chat
+/etc/init.d/les-chatd restart
+```
+
+---
+
+## 🔌 REST & SSE API Reference
+
+`les-chatd` exposes a lightweight REST API on port `7777`:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/healthz` | `GET` | Health check endpoint (`{"status":"ok"}`) |
+| `/api/v1/status` | `GET` | Current node identity, version, uptime, and database size |
+| `/api/v1/peers` | `GET` | List of currently active peers discovered via UDP |
+| `/api/v1/messages` | `GET` | Retrieve stored messages (supports `limit` and `before_sequence`) |
+| `/api/v1/messages` | `POST` | Send a new message (broadcasts to peers and notifies SSE) |
+| `/api/v1/sync` | `GET` | Fetch missed messages by origin node ID and sequence range |
+| `/api/v1/events` | `GET` | Server-Sent Events (SSE) stream for real-time messages & peer updates |
+
+---
+
+## 📚 Project Documentation
+
+* [**System Architecture & Plan**](LES_MESH_CHAT_CPP_PROJECT_PLAN.md): In-depth C++20 architecture, lifecycle, and network design specs.
+* [**OpenWrt Package & LuCI Guide**](openwrt/README.md): IPK compilation, LuCI app design, and firewall rules.
+* [**GitHub & Opkg Feed Release Guide**](docs/DISTRIBUTION.md): Automated CI/CD pipeline, `usign` key management, and GitHub Pages release.
+* [**Offline & MeshGate Distribution Guide**](docs/OFFLINE_DISTRIBUTION.md): Deployment workflow for air-gapped mesh fields using Windows tools or MeshGate internal feed.
+
+---
+
+## 📄 License
+
+LES Mesh Chat is open source software licensed under the [MIT License](LICENSE).  
+Third-party component notices and licenses are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+

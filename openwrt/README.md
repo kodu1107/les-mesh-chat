@@ -1,11 +1,13 @@
-# LES Mesh Chat OpenWrt IPK
+# LES Mesh Chat OpenWrt IPK 패키지 가이드
 
-이 디렉터리는 장비에서 소스를 빌드하지 않고, PC에서 미리 만든 IPK를 장비에 설치하는 배포 구성을 담습니다.
+본 디렉터리는 OpenWrt / OpenMANET 장비에 **LES Mesh Chat 백엔드 데몬(`les-chatd`)**과 **LuCI 웹 인터페이스(`luci-app-les-chat`)**를 빌드 및 설치하고 운용하기 위한 패키지 파일과 스크립트를 포함합니다.
 
-## IPK 빌드
+---
 
-저장소의 빌드 도우미를 사용하면 패키지 복사, 의존성 준비, 빌드 및 체크섬
-생성을 한 번에 수행합니다.
+## 🛠️ IPK 패키지 빌드
+
+### 1. 자동화 빌드 스크립트 사용 (권장)
+저장소에 포함된 도우미 스크립트를 사용하면 패키지 복사, 의존성 설치, 빌드 및 체크섬 생성을 한 번에 수행합니다:
 
 ```bash
 ./tools/build_openwrt_ipk.sh \
@@ -13,17 +15,18 @@
     dist/pi4
 ```
 
-GitHub Release와 서명된 opkg 피드를 자동 운영하는 방법은
-[`docs/DISTRIBUTION.md`](../docs/DISTRIBUTION.md)에 있습니다.
-인터넷이 없는 장비에 Windows CMD 또는 공용 MeshGate로 배포하는 방법은
-[`docs/OFFLINE_DISTRIBUTION.md`](../docs/OFFLINE_DISTRIBUTION.md)에 있습니다.
+> 📖 **참고 문서:**
+> * GitHub Actions 자동 릴리스 및 opkg 피드 관리: [`docs/DISTRIBUTION.md`](../docs/DISTRIBUTION.md)
+> * 인터넷이 없는 장비에 Windows 도구 또는 MeshGate로 배포: [`docs/OFFLINE_DISTRIBUTION.md`](../docs/OFFLINE_DISTRIBUTION.md)
 
-### 수동 빌드
+---
 
-OpenWrt SDK 또는 Buildroot 환경에 `package/les-chatd`와
-`package/luci-app-les-chat`를 복사하고 소스 저장소 경로를 지정합니다.
+### 2. OpenWrt SDK 수동 빌드
 
-공식 SDK에는 feed 소스와 개발 헤더가 기본으로 staging되어 있지 않으므로, 먼저 `base`와 `packages` feed에서 빌드 의존성을 준비합니다.
+OpenWrt SDK 또는 Buildroot 환경에서 직접 빌드할 경우 아래 순서대로 진행합니다.
+
+#### (1) 피드 업데이트 및 빌드 의존성 준비
+공식 SDK에는 개발 헤더가 기본으로 staging되어 있지 않으므로 `base`와 `packages` 피드에서 의존성을 먼저 컴파일합니다:
 
 ```bash
 ./scripts/feeds update base packages
@@ -35,64 +38,62 @@ make package/feeds/base/libjson-c/compile V=s
 make package/feeds/packages/sqlite3/compile V=s
 ```
 
-SQLite CLI는 사용하지 않으므로 `sqlite3`나 `sqlite3-cli` 대신 `libsqlite3`만 선택합니다. 그래야 불필요한 `libedit` 및 `ncurses` 의존성을 피할 수 있습니다.
+> 💡 **Tip:** 불필요한 `libedit` 및 `ncurses` 의존성을 방지하기 위해 `sqlite3` CLI 대신 라이브러리인 `libsqlite3`만 선택합니다.
 
-그다음 패키지 디렉터리를 SDK로 복사합니다.
-
+#### (2) 패키지 소스 복사 및 컴파일
 ```bash
-cp -a /path/to/les-mesh-chat/openwrt/package/les-chatd/. \
-    package/les-chatd/
-cp -a /path/to/les-mesh-chat/openwrt/package/luci-app-les-chat/. \
-    package/luci-app-les-chat/
-```
+# 패키지 디렉터리 복사
+cp -a /path/to/les-mesh-chat/openwrt/package/les-chatd/. package/les-chatd/
+cp -a /path/to/les-mesh-chat/openwrt/package/luci-app-les-chat/. package/luci-app-les-chat/
 
-```bash
+# 빌드 실행
 export LESCHAT_SOURCE_DIR=/path/to/les-mesh-chat
+
 make package/les-chatd/clean
-make package/les-chatd/compile \
-    LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" V=s
+make package/les-chatd/compile LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" V=s
+
 make package/luci-app-les-chat/clean
-make package/luci-app-les-chat/compile \
-    LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" V=s
+make package/luci-app-les-chat/compile LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" V=s
 ```
 
-생성된 IPK는 SDK의 `bin/packages/` 아래에서 찾습니다. Pi 4와 Pi 5는 각각 해당 target SDK에서 별도로 빌드합니다.
+빌드된 IPK는 SDK의 `bin/packages/<architecture>/` 경로에서 확인할 수 있습니다:
+* **Raspberry Pi 4:** `aarch64_cortex-a72`
+* **Raspberry Pi 5:** `aarch64_cortex-a76`
+* **LuCI App:** `all` (공통)
 
-이 작업은 장비에서 실행하지 않습니다. 장비에는 완성된 IPK 파일만 전달합니다.
+---
 
-## 장비 설치
+## 📦 장비 설치 및 실행
 
-IPK를 장비로 복사한 뒤 다음을 실행합니다.
+완성된 IPK를 장비의 `/tmp` 디렉터리로 복사한 후 설치합니다:
 
 ```bash
 opkg install /tmp/les-chatd_0.1.15-*_*.ipk
 opkg install /tmp/luci-app-les-chat_0.1.15-*_all.ipk
+
+# 서비스 활성화 및 시작
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```
 
-`luci-app-les-chat`는 `les-chatd`와 `luci-base`에 의존하므로 UI만 설치해도 daemon이 따라옵니다.
+### 설치되는 파일 목록
 
-```bash
-opkg update
-opkg install luci-app-les-chat
-```
+| 설치 경로 | 설명 |
+|---|---|
+| `/usr/sbin/les-chatd` | C++20 백엔드 데몬 바이너리 |
+| `/usr/share/les-chat/web/` | 독립 웹 UI 정적 리소스 (HTML/JS/CSS) |
+| `/etc/config/les-chat` | UCI 서비스 설정 파일 |
+| `/etc/init.d/les-chatd` | OpenWrt procd 서비스 init 스크립트 |
+| `/etc/uci-defaults/99-les-chat` | 초기화 스크립트 (Node ID 생성 및 기본값 적용) |
+| `/usr/libexec/rpcd/luci.leschat` | LuCI 통신용 rpcd 플러그인 |
+| `/usr/share/luci/menu.d/luci-app-les-chat.json` | LuCI 메뉴 등록 파일 |
+| `/www/luci-static/resources/view/les_chat/` | LuCI JavaScript 뷰 (Chat, Peers, Settings, Status) |
 
-설치된 파일:
+---
 
-```text
-/usr/sbin/les-chatd
-/usr/share/les-chat/web/
-/etc/config/les-chat
-/etc/init.d/les-chatd
-/etc/uci-defaults/99-les-chat
-/usr/libexec/rpcd/luci.leschat
-/usr/share/luci/menu.d/luci-app-les-chat.json
-/www/luci-static/resources/view/les_chat/
-```
+## ⚙️ 설정 가이드 (UCI)
 
-## 설정
-
+### 1. 기본 설정
 ```bash
 uci set les-chat.main.callsign='Bolt'
 uci set les-chat.main.bind='0.0.0.0'
@@ -102,47 +103,37 @@ uci commit les-chat
 /etc/init.d/les-chatd restart
 ```
 
-MeshGate가 있는 구성에서는 MeshGate를 내부 시간 권위 노드로 사용할 수 있습니다.
-MeshGate feed 설치 스크립트는 해당 노드를 자동으로 `authority`로 설정하고,
-다른 노드는 discovery announce를 받은 뒤 시간을 맞춥니다.
+### 2. 시간 동기화 설정 (Time Sync Mode)
+외부 인터넷(NTP)이 없는 환경에서는 MeshGate 노드를 시간 권위 노드로 지정하여 메시 전체의 메시지 타임스탬프를 일치시킬 수 있습니다.
 
-수동으로 설정할 때는 MeshGate에서:
+* **MeshGate 노드 설정:**
+  ```bash
+  uci set les-chat.main.time_sync_mode='authority'
+  uci commit les-chat
+  /etc/init.d/les-chatd restart
+  ```
+* **일반 Point 노드 설정:**
+  ```bash
+  uci set les-chat.main.time_sync_mode='client'
+  uci set les-chat.main.time_authority_id='node-bolt'
+  uci commit les-chat
+  /etc/init.d/les-chatd restart
+  ```
 
-```bash
-uci set les-chat.main.time_sync_mode='authority'
-uci commit les-chat
-/etc/init.d/les-chatd restart
-```
+### 3. 노드 식별자 및 닉네임 자동 복구
+* `node_id 'auto'`는 최초 부팅 시 `/etc/les-chat/node-id`에 고유 UUID를 생성합니다.
+* `/etc/les-chat/node-id`와 `/etc/les-chat/callsign`은 패키지 업데이트 및 sysupgrade 시에도 유지됩니다.
+* LuCI에서는 Settings 탭에서 `Nickname (required)`만 입력하면 되며, 미설정 시 경고 배너가 표시됩니다.
 
-Point 노드에서는:
+### 4. 네트워크 인터페이스 자동 감지
+* `discovery_interface 'auto'`는 OpenMANET의 `br-ahwlan`이 존재하면 UDP announce 및 아웃바운드 HTTP 복제 트래픽의 송신 인터페이스로 사용합니다.
+* 이를 통해 LAN(`br-lan`)과 HaLow(`br-ahwlan`)의 IP 대역이 겹치더라도 양방향 채팅 통신이 정상 유지됩니다.
 
-```bash
-uci set les-chat.main.time_sync_mode='client'
-uci set les-chat.main.time_authority_id='node-bolt'
-uci commit les-chat
-/etc/init.d/les-chatd restart
-```
+---
 
-Point는 피어 발견 직후 MeshGate announce의 시간을 사용해 시스템 시계를
-보정합니다. 시스템 시계 변경 권한이 없으면 메시지 타임스탬프에 적용할
-오프셋을 사용합니다. `ahwlan` 내부에서만 동작하므로 외부 인터넷이나 WAN은
-필요하지 않습니다.
+## 🛡️ 방화벽 설정
 
-`node_id 'auto'`는 최초 초기화 시 `/etc/les-chat/node-id`에 생성된 안정적인 ID를 사용합니다. 이 파일과 사용자가 입력한 닉네임은 `/etc/les-chat/`에 별도로 보관되며, 패키지 업데이트나 펌웨어 업그레이드 후에도 자동 복구됩니다. 두 장비가 같은 node ID 파일을 공유하지 않도록 합니다.
-
-LuCI에서는 일반 설정의 `Nickname (required)`만 한 번 입력하면 됩니다. Node ID는 장비별로 자동 생성·보존되므로 매 업데이트마다 다시 입력할 필요가 없습니다. 닉네임을 아직 입력하지 않은 경우 Chat, Peers, Status 화면 상단에 Settings로 이동하라는 경고가 표시됩니다.
-
-`discovery_interface 'auto'`는 OpenMANET의 `br-ahwlan`이 존재하면 UDP
-announce 송신 인터페이스로 사용합니다. 같은 IP 대역이 LAN과 HaLow에 동시에
-설정된 MeshGate에서는 `br-ahwlan`을 명시하면 커널의 모호한 broadcast 경로를
-피할 수 있습니다. 또한 피어 복제와 누락 메시지 동기화 HTTP 연결도 해당
-인터페이스의 IPv4 주소를 송신 주소로 사용하므로 양방향 채팅이 유지됩니다.
-인터페이스나 경로가 일시적으로 없어 announce가 실패해도 웹/API와 메시지
-저장 서비스는 계속 실행되고 5초마다 발견을 재시도합니다.
-
-## 방화벽
-
-WAN을 열지 않고 실제 메시 네트워크 zone에만 허용합니다. 장비의 zone 이름이 `ahwlan`이 아니라면 실제 zone 이름으로 바꿉니다.
+WAN은 차단하고 실제 메시 네트워크 zone(`ahwlan`)에만 TCP/UDP 7777 포트를 허용합니다:
 
 ```bash
 uci add firewall rule
@@ -163,21 +154,22 @@ uci commit firewall
 /etc/init.d/firewall restart
 ```
 
-## 설치 확인
+---
+
+## 🔍 서비스 상태 확인 및 진단
 
 ```bash
+# 데몬 상태 확인
 /etc/init.d/les-chatd status
+
+# 데몬 로그 확인
 logread -e les-chatd
+
+# HTTP API 응답 테스트
 curl -s http://127.0.0.1:7777/healthz
 curl -s http://127.0.0.1:7777/api/v1/peers
 ```
 
-LuCI에서는 **Services → LES Mesh Chat** 메뉴로 Chat, Peers, Status, Settings에
-들어갑니다. Chat은 LuCI 안에서 동작하는 native 화면이며, daemon이 중지된
-경우 상단의 **Start service** 또는 **Reconnect** 버튼으로 재시작할 수 있습니다.
-daemon의 독립 웹 화면은 장비의 `http://<node-address>:7777/`에서 계속 사용할
-수 있습니다.
+* **LuCI 접속:** OpenWrt 웹 관리 화면의 **Services → LES Mesh Chat** 메뉴에서 Chat, Peers, Status, Settings 화면을 이용할 수 있습니다.
+* **단독 웹 UI:** `http://<node-address>:7777/`로 직접 접속하여 채팅을 이용할 수 있습니다.
 
-패키지 업데이트 시 새 IPK를 설치하면 기존 `/overlay/les-chat/messages.db`,
-`/etc/les-chat/node-id`, `/etc/les-chat/callsign`은 유지됩니다.
-`les-chatd`와 `luci-app-les-chat`는 같은 피드에 있지만 따로 업그레이드할 수 있습니다.

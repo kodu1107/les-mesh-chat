@@ -1,8 +1,41 @@
+# Build artifacts
 /build/
-/.vscode/
-*.log
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+*.o
+*.obj
+
+# Packaging & Distribution output
+/dist/
+*.ipk
+*.ipk.sha256
+*.tar.gz
+*.zip
+
+# Secrets & Security
+/.secrets/
+*.sec
+*.key
+*.pem
+
+# Runtime database & Local data
+/data/
 *.db
 *.db-shm
 *.db-wal
-/dist/
-/.secrets/
+*.log
+
+# IDE & Editor settings
+/.vscode/
+.idea/
+*.swp
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+

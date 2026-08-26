@@ -1,119 +1,138 @@
-# GitHub와 opkg 피드 배포
+# GitHub 및 opkg 피드 배포 가이드
 
-이 저장소는 `v*` 태그가 GitHub에 올라오면 Raspberry Pi 4와 Pi 5용 IPK를
-각각 빌드하고, GitHub Release와 서명된 GitHub Pages opkg 피드를 함께
-갱신하도록 구성되어 있습니다. 릴리스에는 인터넷이 없는 장비를 위한 아키텍처별
-오프라인 묶음, 공용 MeshGate 피드 묶음, Windows 원클릭 도구도 포함됩니다.
+본 문서는 **LES Mesh Chat**의 GitHub Actions CI/CD를 통해 Raspberry Pi 4/5용 OpenWrt IPK 패키지를 자동 빌드하고, 서명된 **GitHub Pages opkg 피드** 및 **GitHub Release**를 배포하는 전 과정을 다룹니다.
 
-## 1. GitHub 저장소 준비
+---
 
-GitHub에서 빈 저장소를 만든 뒤 로컬 저장소의 원격 주소로 등록합니다. 아래
-주소는 본인의 계정과 저장소 이름으로 바꿉니다.
+## 📌 배포 파이프라인 개요
+
+`v*` 형식의 Git 태그가 저장소에 푸시되면 GitHub Actions 워크플로가 자동으로 실행되어 다음 작업을 수행합니다:
+
+1. **아키텍처별 컴파일:**
+   * Raspberry Pi 4 (`bcm2711`, `aarch64_cortex-a72`)
+   * Raspberry Pi 5 (`bcm2712`, `aarch64_cortex-a76`)
+   * LuCI Web App (`all`)
+2. **패키지 인덱스 생성 및 usign 서명**
+3. **GitHub Pages 배포:** 원클릭 설치 스크립트(`install.sh`) 및 opkg 피드 호스팅
+4. **GitHub Release 생성:** 오프라인 설치 번들, MeshGate 번들, Windows 도구 및 `SHA256SUMS` 게시
+
+---
+
+## 1. 사전 준비 (Prerequisites)
+
+### (1) GitHub 원격 저장소 연결
+GitHub에 빈 저장소를 생성한 후 로컬 저장소와 연결합니다:
 
 ```bash
 git remote add origin git@github.com:YOUR_ACCOUNT/les-mesh-chat.git
 ```
 
-공개 저장소가 설치와 소스 검토에는 가장 간단합니다. 비공개 저장소도 가능하지만
-GitHub Pages 공개 범위와 설치 시 인증 방법을 별도로 설계해야 합니다.
+### (2) opkg 패키지 서명 키 생성 (`usign`)
+OpenWrt SDK의 `usign` 도구를 사용하여 서명 키 쌍을 1회 생성합니다.
 
-## 2. opkg 서명 키 생성
-
-둘 중 한 OpenWrt SDK의 `usign`으로 키 쌍을 한 번만 생성합니다. 개인 키는
-분실하면 같은 피드의 업데이트를 서명할 수 없으므로 안전한 별도 저장소에
-백업하고 Git에는 절대 추가하지 않습니다.
+> ⚠️ **보안 주의사항**  
+> 생성된 개인 키(`.secrets/opkg.sec`)는 절대로 Git에 커밋하지 마십시오. `.gitignore`에 등록되어 있는지 반드시 확인하세요.
 
 ```bash
 mkdir -p .secrets
 
+# SDK 경로 설정 (Pi 4 또는 Pi 5 SDK 중 하나 사용)
 SDK="$HOME/sdk/pi5-bcm2712/openwrt-sdk-24.10.2-bcm27xx-bcm2712_gcc-13.3.0_musl.Linux-x86_64"
 
+# usign 키 쌍 생성
 "$SDK/staging_dir/host/bin/usign" -G \
     -s .secrets/opkg.sec \
     -p .secrets/opkg.pub \
     -c "LES Mesh Chat package feed"
 ```
 
-`.secrets/`는 `.gitignore`에 포함되어 있습니다. 그래도 `git status`에서 키가
-추적되지 않는지 반드시 확인합니다.
+---
 
-## 3. GitHub Actions 시크릿 등록
+## 2. GitHub 저장소 설정
 
-GitHub CLI에 로그인했다면 저장소 루트에서 다음과 같이 등록할 수 있습니다.
+### (1) GitHub Actions Secrets 등록
+생성한 키를 GitHub Actions 시크릿에 등록합니다:
 
-```bash
-gh secret set OPKG_SIGNING_KEY < .secrets/opkg.sec
-gh secret set OPKG_SIGNING_PUBLIC_KEY < .secrets/opkg.pub
-```
+* **GitHub CLI 사용 시:**
+  ```bash
+  gh secret set OPKG_SIGNING_KEY < .secrets/opkg.sec
+  gh secret set OPKG_SIGNING_PUBLIC_KEY < .secrets/opkg.pub
+  ```
+* **GitHub 웹 UI 사용 시:**  
+  **Settings → Secrets and variables → Actions** 이동 후 `New repository secret` 클릭:
+  * `OPKG_SIGNING_KEY`: `.secrets/opkg.sec` 파일의 전체 내용 (개인키)
+  * `OPKG_SIGNING_PUBLIC_KEY`: `.secrets/opkg.pub` 파일의 전체 내용 (공개키)
 
-웹에서는 **Settings → Secrets and variables → Actions**에서 같은 두 이름으로
-등록합니다. `OPKG_SIGNING_KEY`는 개인 키이고,
-`OPKG_SIGNING_PUBLIC_KEY`는 장비가 패키지 인덱스를 검증하는 공개 키입니다.
+### (2) GitHub Pages 설정
+1. 저장소의 **Settings → Pages** 메뉴로 이동합니다.
+2. **Build and deployment → Source**를 **GitHub Actions**로 선택합니다.
 
-## 4. GitHub Pages 설정
+---
 
-저장소의 **Settings → Pages → Build and deployment → Source**를
-**GitHub Actions**로 선택합니다. 배포 워크플로는 별도의 Pages 브랜치를 만들지
-않고 Actions가 생성한 사이트를 바로 배포합니다.
+## 3. 릴리스 생성 및 배포 절차
 
-## 5. 릴리스 만들기
+### (1) 버전 일치 확인
+릴리스 태그를 생성하기 전에 아래 3곳의 버전 정보가 일치하는지 확인합니다:
 
-릴리스 태그를 만들기 전에 다음 세 버전이 일치하는지 확인합니다.
+| 위치 | 파일 경로 | 확인 항목 |
+|---|---|---|
+| CMake | `CMakeLists.txt` | `project(... VERSION x.y.z)` |
+| C++ 프로토콜 | `include/leschat/protocol.hpp` | `inline constexpr const char* app_version = "x.y.z";` |
+| Git Tag | - | `vx.y.z` |
 
-- `CMakeLists.txt`의 프로젝트 버전
-- `include/leschat/protocol.hpp`의 `app_version`
-- 태그 이름에서 `v`를 뺀 버전
+> 💡 **Tip:** 프로그램 코드는 그대로 두고 패키지 빌드 리비전만 올릴 때는 `openwrt/package/les-chatd/Makefile`의 `LESCHAT_RELEASE`를 증가시킵니다.
 
-같은 프로그램 버전의 패키지만 다시 만들 때는
-`openwrt/package/les-chatd/Makefile`의 `LESCHAT_RELEASE`를 올립니다. 프로그램
-버전을 올리면 일반적으로 패키지 release를 `1`로 되돌립니다.
-
-검증 후 변경사항을 커밋하고 원격에 올리는 작업은 직접 승인한 시점에 수행합니다.
-그 다음 태그의 예시는 다음과 같습니다.
-
+### (2) Git 태그 생성 및 푸시
 ```bash
 RELEASE=0.1.16
+
+# 로컬 커밋 및 태그 생성
 git tag -a "v${RELEASE}" -m "LES Mesh Chat ${RELEASE}"
+
+# 원격 푸시 (Actions 트리거)
 git push origin main
 git push origin "v${RELEASE}"
 ```
 
-태그 워크플로가 끝나면 **Actions**, **Releases**, **Pages**에서 각각 결과를
-확인합니다.
+### (3) 배포 산출물 (Release Assets)
 
-현재 공개된 예시는 [v0.1.15 release](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.15)입니다.
-Release에는 Pi 4/Pi 5 daemon IPK, LuCI IPK, signed feed, MeshGate bundle,
-오프라인 bundle, Windows 도구와 `SHA256SUMS`가 포함됩니다.
+빌드가 완료되면 GitHub Release에 아래 파일들이 자동 생성됩니다:
 
-## 6. OpenWrt 장비에서 한 번에 설치
+| 산출물 파일명 | 설명 |
+|---|---|
+| `les-chatd_<ver>_aarch64_cortex-a72.ipk` | Raspberry Pi 4 백엔드 데몬 IPK |
+| `les-chatd_<ver>_aarch64_cortex-a76.ipk` | Raspberry Pi 5 백엔드 데몬 IPK |
+| `luci-app-les-chat_<ver>_all.ipk` | LuCI 웹 UI 통합 패키지 (공통) |
+| `les-chat-offline-<ver>-aarch64_cortex-a72.tar.gz` | Pi 4용 완전 오프라인 설치 묶음 |
+| `les-chat-offline-<ver>-aarch64_cortex-a76.tar.gz` | Pi 5용 완전 오프라인 설치 묶음 |
+| `les-chat-meshgate-feed-<ver>.tar.gz` | MeshGate 로컬 opkg 피드 묶음 |
+| `les-chat-windows-tools-<ver>.zip` | Windows 원클릭 설치/동기화 배치 도구 |
+| `SHA256SUMS` | 모든 릴리스 산출물의 SHA-256 해시 목록 |
 
-GitHub Pages 주소의 계정과 저장소 이름을 바꿔 실행합니다.
+---
 
+## 4. OpenWrt 장비에서 설치 및 업그레이드
+
+인터넷이 연결된 OpenWrt 장비에서는 원격 피드를 통해 간편하게 설치할 수 있습니다.
+
+### (1) 최초 원클릭 설치
 ```bash
 wget -qO- https://YOUR_ACCOUNT.github.io/les-mesh-chat/install.sh | sh
 ```
+이 스크립트는 장비의 아키텍처(Pi 4/5)와 OpenWrt 버전을 자동 감지하고, 공개키 등록 및 opkg 피드 추가 후 데몬과 LuCI 앱을 설치합니다.
 
-이 설치기는 OpenWrt `24.10.2`와 Pi 4/Pi 5 패키지 아키텍처를 확인하고,
-공개 키와 feed를 등록한 후 `les-chatd`와 `luci-app-les-chat`를 설치 또는
-업그레이드합니다. 이후에는 다음 명령으로 배포된 최신 패키지를 적용할 수
-있습니다.
+### (2) 최신 버전 업그레이드
+피드가 이미 등록되어 있다면 아래 명령어로 최신 릴리스로 업그레이드합니다:
 
 ```bash
 opkg update
 opkg upgrade les-chatd luci-app-les-chat
 ```
 
-LuCI UI만 올리려면 `opkg upgrade luci-app-les-chat`만 실행합니다. UI 패키지는
-`les-chatd`에 의존하므로 처음에는 다음 한 번으로도 설치됩니다.
+---
 
-```bash
-opkg update
-opkg install luci-app-les-chat
-```
+## 5. 추가 참고 문서
 
-설치 후 장비별 호출 부호와 메시 네트워크 방화벽 zone 설정은
-[`openwrt/README.md`](../openwrt/README.md)를 따릅니다.
+* [**오프라인 장비 및 MeshGate 배포 가이드**](OFFLINE_DISTRIBUTION.md): 외부 인터넷이 차단된 현장 장비 배포 방법
+* [**OpenWrt 및 LuCI 상세 설정**](../openwrt/README.md): 방화벽, 인터페이스 및 LuCI 화면 설정
 
-외부 인터넷이 없는 OpenMANET 장비에 Windows 노트북이나 공용 MeshGate를 통해
-배포하는 절차는 [`OFFLINE_DISTRIBUTION.md`](OFFLINE_DISTRIBUTION.md)를
-따릅니다.
