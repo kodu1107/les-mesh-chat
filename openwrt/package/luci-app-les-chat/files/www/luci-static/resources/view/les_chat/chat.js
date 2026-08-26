@@ -221,7 +221,7 @@ return view.extend({
 					E('strong', {}, [ 'les-manet' ])
 				]),
 				E('span', { 'class': 'les-chat-channel-name' }, [
-					_('Internal scroll — page length stays fixed')
+					_('Live updates')
 				])
 			]),
 			list,
