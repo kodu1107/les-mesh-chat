@@ -172,6 +172,33 @@
 	background: var(--les-surface-muted);
 }
 
+.les-chat-identity-alert {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0 0 16px;
+	padding: 10px 12px;
+	border: 1px solid #e0a12d;
+	border-radius: 8px;
+	background: #fff7e5;
+	color: #684b0a;
+	font-size: 0.9rem;
+}
+
+.les-chat-identity-alert span {
+	flex: 1 1 auto;
+}
+
+.les-chat-identity-alert a {
+	font-weight: 700;
+}
+
+.les-chat-app[data-les-theme="dark"] .les-chat-identity-alert {
+	border-color: #9b7428;
+	background: #332811;
+	color: #f4d58e;
+}
+
 .les-chat-id-block {
 	min-width: 12rem;
 }

@@ -6,10 +6,71 @@ USE_PROCD=1
 
 SERVICE=/usr/sbin/les-chatd
 NODE_ID_FILE=/etc/les-chat/node-id
+CALLSIGN_FILE=/etc/les-chat/callsign
+
+load_identity_value() {
+	file=$1
+	[ -s "$file" ] || return 1
+	sed -n '1{s/[\r\n]*$//;p;}' "$file"
+}
+
+save_identity_value() {
+	file=$1
+	value=$2
+	[ -n "$value" ] || return 1
+	mkdir -p "$(dirname "$file")"
+	umask 077
+	printf '%s\n' "$value" > "$file"
+	chmod 600 "$file"
+}
 
 load_node_id() {
-	[ -s "$NODE_ID_FILE" ] || return 1
-	tr -d ' \t\r\n' < "$NODE_ID_FILE"
+	load_identity_value "$NODE_ID_FILE" | tr -d ' \t\r\n'
+}
+
+resolve_node_id() {
+	configured=$1
+	if [ -n "$configured" ] && [ "$configured" != "auto" ]; then
+		save_identity_value "$NODE_ID_FILE" "$configured" || true
+		echo "$configured"
+		return 0
+	fi
+
+	persistent=$(load_node_id 2>/dev/null || true)
+	if [ -n "$persistent" ]; then
+		echo "$persistent"
+		return 0
+	fi
+
+	# uci-defaults normally creates this file. Keep booting safely if it was
+	# removed during an image upgrade or an incomplete first boot.
+	persistent=$(od -An -N8 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' || true)
+	[ -n "$persistent" ] || return 1
+	save_identity_value "$NODE_ID_FILE" "$persistent" || return 1
+	echo "$persistent"
+}
+
+resolve_callsign() {
+	configured=$1
+	if [ -n "$configured" ] && [ "$configured" != "auto" ]; then
+		save_identity_value "$CALLSIGN_FILE" "$configured" || true
+		echo "$configured"
+		return 0
+	fi
+
+	persistent=$(load_identity_value "$CALLSIGN_FILE" 2>/dev/null || true)
+	if [ -n "$persistent" ]; then
+		# Restore the visible UCI value as well, so LuCI does not ask again after
+		# a package update replaced the default config with callsign='auto'.
+		if [ "$configured" != "$persistent" ]; then
+			uci -q set les-chat.main.callsign="$persistent" || true
+			uci -q commit les-chat || true
+		fi
+		echo "$persistent"
+		return 0
+	fi
+
+	hostname
 }
 
 detect_discovery_interface() {
@@ -28,14 +89,14 @@ start_service() {
 	[ "$enabled" -eq 1 ] || return 0
 
 	config_get node_id main node_id auto
-	[ "$node_id" = "auto" ] && node_id="$(load_node_id)"
+	node_id="$(resolve_node_id "$node_id")"
 	[ -n "$node_id" ] || {
 		logger -t les-chatd "node ID is not configured"
 		return 1
 	}
 
 	config_get callsign main callsign auto
-	[ "$callsign" = "auto" ] && callsign="$(hostname)"
+	callsign="$(resolve_callsign "$callsign")"
 	config_get bind main bind 0.0.0.0
 	config_get port main port 7777
 	config_get discovery_address main discovery_address 255.255.255.255
@@ -63,8 +124,9 @@ start_service() {
 		--discovery-address "$discovery_address" \
 		--discovery-port "$discovery_port" \
 		--time-sync-mode "$time_sync_mode" \
-		--time-authority-id "$time_authority_id" \
 		--database "$database"
+	[ -z "$time_authority_id" ] || procd_append_param command \
+		--time-authority-id "$time_authority_id"
 	[ -z "$discovery_interface" ] || procd_append_param command \
 		--discovery-interface "$discovery_interface"
 	procd_set_param respawn 3600 5 5

@@ -132,6 +132,16 @@ return baseclass.extend({
 					]),
 					E('dl', { 'class': 'les-chat-metrics' }, metrics)
 				]),
+				!isTrue(status.callsign_configured) ? E('div', {
+					'class': 'les-chat-identity-alert',
+					'role': 'alert'
+				}, [
+					E('strong', {}, [ _('Nickname is not set') ]),
+					E('span', {}, [ _('Set a nickname in Settings so other nodes can identify this device.') ]),
+					E('a', {
+						'href': L.url('admin/services/les-chat/settings')
+					}, [ _('Open Settings') ])
+				]) : '',
 				opts.body
 			])
 		]);

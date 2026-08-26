@@ -35,6 +35,43 @@ database_path() {
 	uci_get_default database /overlay/les-chat/messages.db
 }
 
+identity_file_value() {
+	file=$1
+	[ -s "$file" ] || return 1
+	sed -n '1{s/[\r\n]*$//;p;}' "$file"
+}
+
+effective_node_id() {
+	configured=$(uci -q get les-chat.main.node_id || true)
+	if [ -n "$configured" ] && [ "$configured" != "auto" ]; then
+		echo "$configured"
+		return
+	fi
+	persistent=$(identity_file_value /etc/les-chat/node-id 2>/dev/null || true)
+	persistent=$(printf '%s' "$persistent" | tr -d ' \t\r\n')
+	[ -n "$persistent" ] && echo "$persistent" || echo auto
+}
+
+effective_callsign() {
+	persistent=$(identity_file_value /etc/les-chat/callsign 2>/dev/null || true)
+	if [ -n "$persistent" ]; then
+		echo "$persistent"
+		return
+	fi
+	configured=$(uci -q get les-chat.main.callsign || true)
+	if [ -n "$configured" ] && [ "$configured" != "auto" ]; then
+		echo "$configured"
+	else
+		hostname
+	fi
+}
+
+callsign_configured() {
+	[ -n "$(identity_file_value /etc/les-chat/callsign 2>/dev/null || true)" ] && return 0
+	configured=$(uci -q get les-chat.main.callsign || true)
+	[ -n "$configured" ] && [ "$configured" != "auto" ]
+}
+
 database_bytes() {
 	path=$(database_path)
 	if [ -f "$path" ]; then
@@ -59,8 +96,18 @@ dump_unreachable() {
 	json_add_boolean running 0
 	json_add_boolean healthz_ok 0
 	json_add_string error "daemon_unreachable"
-	json_add_string node_id "$(uci_get_default node_id auto)"
-	json_add_string callsign "$(uci_get_default callsign auto)"
+	json_add_string node_id "$(effective_node_id)"
+	json_add_string callsign "$(effective_callsign)"
+	if callsign_configured; then
+		json_add_boolean callsign_configured 1
+	else
+		json_add_boolean callsign_configured 0
+	fi
+	if [ -s /etc/les-chat/node-id ]; then
+		json_add_boolean node_id_persistent 1
+	else
+		json_add_boolean node_id_persistent 0
+	fi
 	json_add_string bind_address "$(uci_get_default bind 0.0.0.0)"
 	json_add_int port "$(daemon_port)"
 	json_add_string database "$(database_path)"
@@ -98,6 +145,16 @@ call_status() {
 			json_add_boolean running 0
 		fi
 		json_add_boolean healthz_ok 1
+		if callsign_configured; then
+			json_add_boolean callsign_configured 1
+		else
+			json_add_boolean callsign_configured 0
+		fi
+		if [ -s /etc/les-chat/node-id ]; then
+			json_add_boolean node_id_persistent 1
+		else
+			json_add_boolean node_id_persistent 0
+		fi
 		json_add_string database "$(database_path)"
 		json_add_int database_bytes "$(database_bytes)"
 		json_dump

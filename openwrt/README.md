@@ -128,7 +128,9 @@ Point는 피어 발견 직후 MeshGate announce의 시간을 사용해 시스템
 오프셋을 사용합니다. `ahwlan` 내부에서만 동작하므로 외부 인터넷이나 WAN은
 필요하지 않습니다.
 
-`node_id 'auto'`는 최초 초기화 시 `/etc/les-chat/node-id`에 생성된 안정적인 ID를 사용합니다. 두 장비가 같은 node ID 파일을 공유하지 않도록 합니다.
+`node_id 'auto'`는 최초 초기화 시 `/etc/les-chat/node-id`에 생성된 안정적인 ID를 사용합니다. 이 파일과 사용자가 입력한 닉네임은 `/etc/les-chat/`에 별도로 보관되며, 패키지 업데이트나 펌웨어 업그레이드 후에도 자동 복구됩니다. 두 장비가 같은 node ID 파일을 공유하지 않도록 합니다.
+
+LuCI에서는 일반 설정의 `Nickname (required)`만 한 번 입력하면 됩니다. Node ID는 장비별로 자동 생성·보존되므로 매 업데이트마다 다시 입력할 필요가 없습니다. 닉네임을 아직 입력하지 않은 경우 Chat, Peers, Status 화면 상단에 Settings로 이동하라는 경고가 표시됩니다.
 
 `discovery_interface 'auto'`는 OpenMANET의 `br-ahwlan`이 존재하면 UDP
 announce 송신 인터페이스로 사용합니다. 같은 IP 대역이 LAN과 HaLow에 동시에

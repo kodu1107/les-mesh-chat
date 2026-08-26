@@ -2,6 +2,7 @@
 
 NODE_DIR=/etc/les-chat
 NODE_ID_FILE="$NODE_DIR/node-id"
+CALLSIGN_FILE="$NODE_DIR/callsign"
 
 mkdir -p "$NODE_DIR"
 
@@ -14,6 +15,19 @@ if [ ! -s "$NODE_ID_FILE" ]; then
 fi
 
 chmod 600 "$NODE_ID_FILE"
+
+# Migrate an explicitly configured nickname into the persistent identity
+# store. The store is outside /etc/config so package updates cannot replace it.
+configured_callsign=$(uci -q get les-chat.main.callsign || true)
+case "$configured_callsign" in
+	''|auto)
+		;;
+	*)
+		umask 077
+		printf '%s\n' "$configured_callsign" > "$CALLSIGN_FILE"
+		chmod 600 "$CALLSIGN_FILE"
+		;;
+esac
 
 if [ -e "$NODE_DIR/time-authority" ]; then
 	uci -q set les-chat.main.time_sync_mode='authority' || true

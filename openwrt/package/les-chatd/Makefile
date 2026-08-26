@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=les-chatd
-LESCHAT_VERSION?=0.1.13
+LESCHAT_VERSION?=0.1.14
 LESCHAT_RELEASE?=1
 PKG_VERSION:=$(LESCHAT_VERSION)
 PKG_RELEASE:=$(LESCHAT_RELEASE)
@@ -55,6 +55,8 @@ define Package/les-chatd/install
 	$(INSTALL_BIN) ./files/etc/init.d/les-chatd $(1)/etc/init.d/les-chatd
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-les-chat $(1)/etc/uci-defaults/99-les-chat
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) ./files/lib/upgrade/keep.d/les-chatd $(1)/lib/upgrade/keep.d/les-chatd
 endef
 
 $(eval $(call BuildPackage,les-chatd))

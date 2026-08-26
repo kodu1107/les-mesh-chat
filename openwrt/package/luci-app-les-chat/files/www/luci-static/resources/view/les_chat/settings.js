@@ -46,15 +46,23 @@ return view.extend({
 		o.rmempty = false;
 		o.default = '1';
 
-		o = s.taboption('general', form.Value, 'callsign', _('Callsign'),
-			_('Name announced to peers. auto uses the device hostname.'));
-		o.placeholder = 'auto';
+		o = s.taboption('general', form.Value, 'callsign', _('Nickname (required)'),
+			_('The name announced to peers. Node ID is generated once and restored automatically after updates.'));
+		o.placeholder = _('Enter a nickname');
 		o.rmempty = false;
+		o.validate = function(section_id, value) {
+			if (!value || value === 'auto' || !value.trim())
+				return _('Enter a nickname before saving.');
+			if (value.length > 64)
+				return _('Nickname cannot exceed 64 bytes.');
+			return true;
+		};
 
-		o = s.taboption('general', form.Value, 'node_id', _('Node ID'),
-			_('Stable identity for this node. Keep auto unless you are recovering a node. Do not copy this value between devices.'));
-		o.placeholder = 'auto';
-		o.rmempty = false;
+		o = s.taboption('general', form.DummyValue, '_node_id', _('Node ID (automatic)'),
+			_('This stable device ID is stored outside the package config and is preserved during updates.'));
+		o.cfgvalue = function() {
+			return status.node_id || _('Generated on first boot');
+		};
 
 		o = s.taboption('network', form.Value, 'bind', _('HTTP bind address'),
 			_('0.0.0.0 serves all interfaces. Do not expose this on WAN.'));
@@ -103,7 +111,7 @@ return view.extend({
 
 		return m.render().then(function(formNode) {
 			const note = E('p', { 'class': 'les-chat-settings-note' }, [
-				_('General options are enough for most nodes. Network and storage tabs change how the daemon binds and where history is stored. Save & Apply restarts les-chatd.')
+				_('Set the nickname once. The generated Node ID is kept in persistent storage and restored automatically after package or firmware updates. Save & Apply restarts les-chatd.')
 			]);
 			return common.shell({
 				title: _('Settings'),

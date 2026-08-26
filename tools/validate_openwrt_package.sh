@@ -8,6 +8,7 @@ required_files='openwrt/package/les-chatd/Makefile
 openwrt/package/les-chatd/files/etc/config/les-chat
 openwrt/package/les-chatd/files/etc/init.d/les-chatd
 openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat
+openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-chatd
 openwrt/package/luci-app-les-chat/Makefile
 openwrt/package/luci-app-les-chat/files/etc/uci-defaults/80-luci-app-les-chat
 openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat
@@ -50,6 +51,9 @@ done
 grep -q 'opkg install' "$root/openwrt/README.md"
 grep -q 'luci-app-les-chat' "$root/openwrt/README.md"
 grep -q -- '--database' "$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
+grep -q -- 'time-authority-id' "$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
+grep -q 'node-id' "$root/openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-chatd"
+grep -q 'callsign' "$root/openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-chatd"
 grep -q -- '--discovery-interface' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
 grep -q '^PKG_LICENSE:=MIT$' "$root/openwrt/package/les-chatd/Makefile"
