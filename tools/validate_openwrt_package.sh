@@ -57,9 +57,9 @@ grep -q 'node-id' "$root/openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-
 grep -q 'callsign' "$root/openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-chatd"
 grep -q -- '--discovery-interface' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
-grep -q 'les_chatd_tcp' \
+grep -Fq 'for rule in tcp udp' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
-grep -q 'les_chatd_udp' \
+grep -Fq 'section="les_chatd_' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
 grep -q 'advmss 1160' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chat-routing"
