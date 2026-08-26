@@ -15,10 +15,11 @@
 			]
 		},
 		"write": {
-			"ubus": {
-				"luci.leschat": [
-					"send"
-				]
+		"ubus": {
+			"luci.leschat": [
+				"send",
+				"restart"
+			]
 			}
 		}
 	},

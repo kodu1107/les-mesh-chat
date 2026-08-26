@@ -94,6 +94,15 @@
 	cursor: pointer;
 }
 
+.les-chat-restart {
+	border-color: var(--les-warn);
+	color: var(--les-warn);
+}
+
+.les-chat-restart:hover {
+	background: color-mix(in srgb, var(--les-warn) 12%, var(--les-surface));
+}
+
 .les-chat-theme-toggle:hover,
 .les-chat-theme-toggle:focus {
 	border-color: var(--les-accent);

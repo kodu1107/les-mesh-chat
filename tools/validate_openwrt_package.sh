@@ -69,6 +69,8 @@ grep -q 'call_messages' \
 	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"
 grep -q 'call_send' \
 	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"
+grep -q 'call_restart' \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"
 grep -q 'luci-app-les-chat' "$root/openwrt/feed/install.sh.in"
 grep -q 'luci-app-les-chat' "$root/openwrt/offline/install.sh"
 grep -Fq 'luci-app-les-chat_*_all.ipk' \

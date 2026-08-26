@@ -244,6 +244,26 @@ call_send() {
 	json_dump
 }
 
+call_restart() {
+	# The visible action is an explicit request to run the service, so recover
+	# from an accidentally disabled UCI flag as well as a crashed process.
+	uci -q set les-chat.main.enabled='1' || true
+	uci -q commit les-chat || true
+	/etc/init.d/les-chatd enable >/dev/null 2>&1 || true
+	if /etc/init.d/les-chatd restart >/dev/null 2>&1; then
+		json_init
+		json_add_boolean ok 1
+		json_add_string status "restarting"
+		json_dump
+		return
+	fi
+
+	json_init
+	json_add_boolean ok 0
+	json_add_string error "restart_failed"
+	json_dump
+}
+
 case "$1" in
 	list)
 		json_init
@@ -256,6 +276,8 @@ case "$1" in
 		json_add_object messages
 		json_close_object
 		json_add_object send
+		json_close_object
+		json_add_object restart
 		json_close_object
 		json_dump
 		;;
@@ -275,6 +297,9 @@ case "$1" in
 				;;
 			send)
 				call_send
+				;;
+			restart)
+				call_restart
 				;;
 		esac
 		;;

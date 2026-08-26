@@ -1,8 +1,15 @@
 'use strict';
 'require baseclass';
+'require rpc';
+'require ui';
 
 let cssLoaded = false;
 const themeStorageKey = 'les-chat-theme';
+
+const callRestart = rpc.declare({
+	object: 'luci.leschat',
+	method: 'restart'
+});
 
 function isTrue(value) {
 	return value === true || value === 1 || value === '1';
@@ -102,6 +109,11 @@ return baseclass.extend({
 			'aria-pressed': themeMode === 'dark' ? 'true' : 'false',
 			'title': themeMode === 'dark' ? _('Switch to day mode') : _('Switch to night mode')
 		}, [ themeMode === 'dark' ? _('Day mode') : _('Night mode') ]);
+		const restartButton = state.id === 'stopped' || state.id === 'reconnect' ? E('button', {
+			'class': 'les-chat-restart',
+			'type': 'button',
+			'title': state.id === 'stopped' ? _('Start les-chatd') : _('Reconnect les-chatd')
+		}, [ state.id === 'stopped' ? _('Start service') : _('Reconnect') ]) : null;
 		const root = E('div', {
 			'class': 'les-chat-app',
 			'data-les-theme': themeMode
@@ -117,6 +129,7 @@ return baseclass.extend({
 						])
 					]),
 					E('div', { 'class': 'les-chat-topbar-actions' }, [
+						restartButton || '',
 						themeToggle,
 						this.badge(state)
 					])
@@ -154,6 +167,26 @@ return baseclass.extend({
 			themeToggle.textContent = nextMode === 'dark' ? _('Day mode') : _('Night mode');
 			this.storeThemeMode(nextMode);
 		}, this));
+
+		if (restartButton) {
+			restartButton.addEventListener('click', function() {
+				restartButton.disabled = true;
+				restartButton.textContent = _('Starting…');
+				callRestart().then(function(result) {
+					if (!result || (result.ok !== true && result.ok !== 1 && result.ok !== '1'))
+						throw new Error(_('les-chatd restart failed'));
+					setTimeout(function() {
+						if (document.body.contains(root))
+							location.reload();
+					}, 1200);
+				}).catch(function(error) {
+					restartButton.disabled = false;
+					restartButton.textContent = state.id === 'stopped' ? _('Start service') : _('Reconnect');
+					if (window.ui && ui.addNotification)
+						ui.addNotification(null, E('p', {}, [ error.message || error ]), 'error');
+				});
+			});
+		}
 
 		return root;
 	},
