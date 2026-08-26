@@ -58,8 +58,28 @@ return view.extend({
 			return true;
 		};
 
-		o = s.taboption('general', form.DummyValue, '_node_id', _('Node ID (automatic)'),
-			_('This stable device ID is stored outside the package config and is preserved during updates.'));
+		o = s.taboption('general', form.Value, 'node_id', _('Node ID'),
+			_('Use auto to keep the generated stable ID, or enter a unique manual ID (1–64 letters, numbers, ., _ or -). Changing it creates a new message identity.'));
+		o.placeholder = 'auto';
+		o.default = 'auto';
+		o.rmempty = false;
+		o.validate = function(section_id, value) {
+			value = String(value || '');
+			if (!value)
+				return _('Enter auto or a unique Node ID.');
+			if (value !== value.trim())
+				return _('Node ID cannot start or end with spaces.');
+			if (value === 'auto')
+				return true;
+			if (value.length > 64)
+				return _('Node ID cannot exceed 64 characters.');
+			if (!/^[A-Za-z0-9._-]+$/.test(value))
+				return _('Node ID may contain only letters, numbers, period, underscore, and hyphen.');
+			return true;
+		};
+
+		o = s.taboption('general', form.DummyValue, '_effective_node_id', _('Current effective Node ID'),
+			_('The ID currently announced by les-chatd.'));
 		o.cfgvalue = function() {
 			return status.node_id || _('Generated on first boot');
 		};
@@ -111,7 +131,7 @@ return view.extend({
 
 		return m.render().then(function(formNode) {
 			const note = E('p', { 'class': 'les-chat-settings-note' }, [
-				_('Set the nickname once. The generated Node ID is kept in persistent storage and restored automatically after package or firmware updates. Save & Apply restarts les-chatd.')
+				_('Set the nickname once. Keep Node ID as auto for a generated persistent ID, or enter a unique manual ID. Save & Apply restarts les-chatd.')
 			]);
 			return common.shell({
 				title: _('Settings'),

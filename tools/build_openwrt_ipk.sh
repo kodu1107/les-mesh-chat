@@ -13,7 +13,7 @@ fi
 
 sdk_dir=$1
 output_dir=$2
-version=${3:-0.1.15}
+version=${3:-0.1.16}
 release=${4:-1}
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 

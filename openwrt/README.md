@@ -68,8 +68,8 @@ make package/luci-app-les-chat/compile LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" 
 완성된 IPK를 장비의 `/tmp` 디렉터리로 복사한 후 설치합니다:
 
 ```bash
-opkg install /tmp/les-chatd_0.1.15-*_*.ipk
-opkg install /tmp/luci-app-les-chat_0.1.15-*_all.ipk
+opkg install /tmp/les-chatd_0.1.16-*_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.16-*_all.ipk
 
 # 서비스 활성화 및 시작
 /etc/init.d/les-chatd enable
@@ -122,8 +122,10 @@ uci commit les-chat
 
 ### 3. 노드 식별자 및 닉네임 자동 복구
 * `node_id 'auto'`는 최초 부팅 시 `/etc/les-chat/node-id`에 고유 UUID를 생성합니다.
+* LuCI Settings에서 `Node ID`를 `auto`로 유지하거나, 장비마다 고유한 수동 ID(영문·숫자·`.`, `_`, `-`)를 입력할 수 있습니다.
+* Node ID를 변경하면 해당 장비가 새로운 메시지 origin으로 인식됩니다.
 * `/etc/les-chat/node-id`와 `/etc/les-chat/callsign`은 패키지 업데이트 및 sysupgrade 시에도 유지됩니다.
-* LuCI에서는 Settings 탭에서 `Nickname (required)`만 입력하면 되며, 미설정 시 경고 배너가 표시됩니다.
+* LuCI에서는 Settings 탭에서 `Nickname (required)`를 입력해야 하며, 미설정 시 경고 배너가 표시됩니다.
 
 ### 4. 네트워크 인터페이스 자동 감지
 * `discovery_interface 'auto'`는 OpenMANET의 `br-ahwlan`이 존재하면 UDP announce 및 아웃바운드 HTTP 복제 트래픽의 송신 인터페이스로 사용합니다.
@@ -172,4 +174,3 @@ curl -s http://127.0.0.1:7777/api/v1/peers
 
 * **LuCI 접속:** OpenWrt 웹 관리 화면의 **Services → LES Mesh Chat** 메뉴에서 Chat, Peers, Status, Settings 화면을 이용할 수 있습니다.
 * **단독 웹 UI:** `http://<node-address>:7777/`로 직접 접속하여 채팅을 이용할 수 있습니다.
-

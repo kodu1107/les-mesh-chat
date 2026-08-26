@@ -35,7 +35,9 @@ Testing/
 *.swp
 *~
 
+# Personal implementation planning
+FILE_TRANSFER_IMPLEMENTATION_PLAN.md
+
 # Operating System files
 .DS_Store
 Thumbs.db
-

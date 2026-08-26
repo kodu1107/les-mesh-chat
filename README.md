@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-20-brightgreen.svg)](CMakeLists.txt)
 [![Target Platform](https://img.shields.io/badge/Platform-OpenMANET%20%7C%20OpenWrt%2024.10-orange.svg)](openwrt/README.md)
-[![Release](https://img.shields.io/badge/Release-v0.1.15-informational.svg)](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.15)
+[![Release](https://img.shields.io/badge/Release-v0.1.16-informational.svg)](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.16)
 
 **LES Mesh Chat** is an offline-first, decentralized P2P text communication system designed for **OpenMANET** and **OpenWrt** routers over **802.11ah HaLow** and **BATMAN-adv** mesh networks. It operates entirely without internet access, DNS, or central servers.
 
@@ -130,6 +130,9 @@ OpenWrt configuration is managed via UCI (`/etc/config/les-chat`):
 # Set display callsign (nickname)
 uci set les-chat.main.callsign='Bolt'
 
+# Keep the generated ID, or set a unique manual Node ID
+uci set les-chat.main.node_id='node-bolt'
+
 # Bind explicit mesh egress interface (recommended for HaLow nodes)
 uci set les-chat.main.discovery_interface='br-ahwlan'
 
@@ -172,4 +175,3 @@ uci commit les-chat
 
 LES Mesh Chat is open source software licensed under the [MIT License](LICENSE).  
 Third-party component notices and licenses are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
