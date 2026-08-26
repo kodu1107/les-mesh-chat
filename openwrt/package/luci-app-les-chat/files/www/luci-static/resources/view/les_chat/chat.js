@@ -31,6 +31,39 @@ function nearBottom(node) {
 	return (node.scrollHeight - node.scrollTop - node.clientHeight) < 48;
 }
 
+function messageTime(message) {
+	const value = Number(message && message.created_at_ms);
+	return Number.isFinite(value) ? value : 0;
+}
+
+function messageSequence(message) {
+	const value = Number(message && message.sequence);
+	return Number.isFinite(value) ? value : 0;
+}
+
+function compareMessages(left, right) {
+	const leftTime = messageTime(left);
+	const rightTime = messageTime(right);
+	if (leftTime !== rightTime)
+		return leftTime < rightTime ? -1 : 1;
+
+	const leftOrigin = String((left && (left.origin || left.callsign)) || '');
+	const rightOrigin = String((right && (right.origin || right.callsign)) || '');
+	if (leftOrigin !== rightOrigin)
+		return leftOrigin < rightOrigin ? -1 : 1;
+
+	const leftSequence = messageSequence(left);
+	const rightSequence = messageSequence(right);
+	if (leftSequence !== rightSequence)
+		return leftSequence < rightSequence ? -1 : 1;
+
+	const leftId = String((left && (left.id || left.message_id)) || '');
+	const rightId = String((right && (right.id || right.message_id)) || '');
+	if (leftId === rightId)
+		return 0;
+	return leftId < rightId ? -1 : 1;
+}
+
 return view.extend({
 	composing: false,
 	sending: false,
@@ -52,7 +85,10 @@ return view.extend({
 		const local = message.origin === this.localNodeId;
 		const article = E('article', {
 			'class': 'les-chat-msg ' + (local ? 'les-chat-msg-local' : 'les-chat-msg-remote'),
-			'data-message-id': message.id || ''
+			'data-message-id': message.id || '',
+			'data-message-origin': message.origin || message.callsign || '',
+			'data-message-sequence': message.sequence != null ? String(message.sequence) : '0',
+			'data-message-time': message.created_at_ms != null ? String(message.created_at_ms) : '0'
 		}, [
 			E('header', { 'class': 'les-chat-msg-header' }, [
 				E('strong', { 'class': 'les-chat-msg-callsign' }, [
@@ -70,7 +106,7 @@ return view.extend({
 	},
 
 	fillMessages: function(list, messages, emptyTitle, emptyDetail) {
-		const items = Array.isArray(messages) ? messages : [];
+		const items = Array.isArray(messages) ? messages.slice().sort(compareMessages) : [];
 		this.knownIds = {};
 		if (items.length === 0) {
 			L.dom.content(list, common.empty(emptyTitle, emptyDetail));
@@ -94,7 +130,22 @@ return view.extend({
 		const empty = list.querySelector('.les-chat-empty');
 		if (empty)
 			empty.remove();
-		list.appendChild(this.messageNode(message));
+
+		const node = this.messageNode(message);
+		const existing = list.querySelectorAll('.les-chat-msg');
+		for (let i = 0; i < existing.length; i++) {
+			const existingMessage = {
+				id: existing[i].getAttribute('data-message-id') || '',
+				origin: existing[i].getAttribute('data-message-origin') || '',
+				sequence: existing[i].getAttribute('data-message-sequence') || '0',
+				created_at_ms: existing[i].getAttribute('data-message-time') || '0'
+			};
+			if (compareMessages(message, existingMessage) < 0) {
+				list.insertBefore(node, existing[i]);
+				return true;
+			}
+		}
+		list.appendChild(node);
 		return true;
 	},
 
@@ -106,6 +157,7 @@ return view.extend({
 		this.liveRunning = common.isTrue(status.running) &&
 			common.isTrue(status.healthz_ok) && !rpcError;
 		this.localNodeId = status.node_id || '';
+		let hasNewMessages = false;
 
 		const list = E('div', {
 			'id': 'les-chat-messages',
@@ -117,10 +169,12 @@ return view.extend({
 			'style': 'display:none',
 			'click': L.bind(function() {
 				this.pinnedToBottom = true;
+				hasNewMessages = false;
 				jump.style.display = 'none';
 				list.scrollTop = list.scrollHeight;
+				jump.textContent = _('Jump to latest');
 			}, this)
-		}, [ _('New messages') ]);
+		}, [ _('Jump to latest') ]);
 		const input = E('input', {
 			'id': 'les-chat-input',
 			'type': 'text',
@@ -142,8 +196,14 @@ return view.extend({
 
 		list.addEventListener('scroll', L.bind(function() {
 			this.pinnedToBottom = nearBottom(list);
-			if (this.pinnedToBottom)
+			if (this.pinnedToBottom) {
+				hasNewMessages = false;
 				jump.style.display = 'none';
+			}
+			else {
+				jump.textContent = hasNewMessages ? _('New messages') : _('Jump to latest');
+				jump.style.display = '';
+			}
 		}, this));
 
 		input.addEventListener('compositionstart', L.bind(function() {
@@ -186,7 +246,9 @@ return view.extend({
 					input.value = '';
 					hint.textContent = _('Sent');
 					this.pinnedToBottom = true;
+					hasNewMessages = false;
 					list.scrollTop = list.scrollHeight;
+					jump.style.display = 'none';
 				}, this)).catch(function(error) {
 					hint.textContent = _('Could not send the message.');
 					hint.className = 'les-chat-hint les-chat-hint-error';
@@ -229,6 +291,11 @@ return view.extend({
 			E('div', { 'class': 'les-chat-composer' }, [ form ]),
 			hint
 		]);
+		if (this.pinnedToBottom) {
+			window.setTimeout(function() {
+				list.scrollTop = list.scrollHeight;
+			}, 0);
+		}
 
 		poll.add(L.bind(function() {
 			if (!document.getElementById('les-chat-messages'))
@@ -254,7 +321,11 @@ return view.extend({
 				if (added && wasPinned)
 					list.scrollTop = list.scrollHeight;
 				else if (added && !wasPinned)
+					hasNewMessages = true;
+				if (!nearBottom(list)) {
+					jump.textContent = hasNewMessages ? _('New messages') : _('Jump to latest');
 					jump.style.display = '';
+				}
 
 				const root = document.querySelector('.les-chat-app');
 				if (!root)

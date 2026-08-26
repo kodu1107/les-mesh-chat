@@ -23,6 +23,23 @@
 	line-height: 1.45;
 }
 
+/* OpenMANET-style night palette: deep blue-green surfaces with restrained cyan accents. */
+.les-chat-app[data-les-theme="dark"] {
+	--les-bg: #071014;
+	--les-surface: #0d191e;
+	--les-surface-muted: #132229;
+	--les-border: #29434c;
+	--les-border-soft: #1d333b;
+	--les-text: #dcecf0;
+	--les-text-strong: #f2fbfd;
+	--les-muted: #86a6af;
+	--les-accent: #16d9eb;
+	--les-accent-strong: #0bb8cc;
+	--les-success: #46d98a;
+	--les-danger: #ff7180;
+	--les-warn: #e6c35c;
+}
+
 .les-chat-app * {
 	box-sizing: border-box;
 }
@@ -57,6 +74,32 @@
 
 .les-chat-topbar {
 	background: var(--les-surface);
+}
+
+.les-chat-topbar-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.les-chat-theme-toggle {
+	min-height: 30px;
+	padding: 4px 9px;
+	border: 1px solid var(--les-border);
+	border-radius: 4px;
+	color: var(--les-muted);
+	background: transparent;
+	font: inherit;
+	font-size: 0.76rem;
+	cursor: pointer;
+}
+
+.les-chat-theme-toggle:hover,
+.les-chat-theme-toggle:focus {
+	border-color: var(--les-accent);
+	color: var(--les-accent-strong);
+	outline: 2px solid color-mix(in srgb, var(--les-accent) 20%, transparent);
+	outline-offset: 1px;
 }
 
 .les-chat-composer {
@@ -196,6 +239,7 @@
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+	position: relative;
 	height: min(66vh, 44rem);
 }
 
@@ -242,7 +286,8 @@
 }
 
 .les-chat-msg {
-	width: min(76%, 42rem);
+	width: fit-content;
+	max-width: min(76%, 42rem);
 	padding: 9px 12px;
 	border: 1px solid var(--les-border-soft);
 	border-radius: 9px;
@@ -298,8 +343,12 @@
 }
 
 .les-chat-jump {
-	align-self: center;
-	margin: 0 0 8px;
+	position: absolute;
+	left: 50%;
+	bottom: 76px;
+	z-index: 2;
+	margin: 0;
+	transform: translateX(-50%);
 	border-radius: 999px;
 }
 
@@ -485,8 +534,14 @@
 		flex-direction: column;
 	}
 
+	.les-chat-topbar-actions {
+		width: 100%;
+		justify-content: space-between;
+	}
+
 	.les-chat-msg {
-		width: 88%;
+		width: fit-content;
+		max-width: 88%;
 	}
 
 	.les-chat-card {

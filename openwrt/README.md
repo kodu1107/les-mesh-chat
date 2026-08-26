@@ -65,8 +65,8 @@ make package/luci-app-les-chat/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.11-r1_*.ipk
-opkg install /tmp/luci-app-les-chat_0.1.11-r1_all.ipk
+opkg install /tmp/les-chatd_0.1.12-r1_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.12-r1_all.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```

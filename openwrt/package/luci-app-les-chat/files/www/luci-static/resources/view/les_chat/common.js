@@ -2,12 +2,31 @@
 'require baseclass';
 
 let cssLoaded = false;
+const themeStorageKey = 'les-chat-theme';
 
 function isTrue(value) {
 	return value === true || value === 1 || value === '1';
 }
 
 return baseclass.extend({
+	themeMode: function() {
+		try {
+			return localStorage.getItem(themeStorageKey) === 'dark' ? 'dark' : 'light';
+		}
+		catch (error) {
+			return 'light';
+		}
+	},
+
+	storeThemeMode: function(mode) {
+		try {
+			localStorage.setItem(themeStorageKey, mode);
+		}
+		catch (error) {
+			/* Private browsing or restricted storage should not break the UI. */
+		}
+	},
+
 	loadCss: function() {
 		if (cssLoaded || document.getElementById('les-chat-stylesheet'))
 			return;
@@ -76,7 +95,17 @@ return baseclass.extend({
 				metrics.push(item);
 			});
 
-		return E('div', { 'class': 'les-chat-app' }, [
+		const themeMode = this.themeMode();
+		const themeToggle = E('button', {
+			'class': 'les-chat-theme-toggle',
+			'type': 'button',
+			'aria-pressed': themeMode === 'dark' ? 'true' : 'false',
+			'title': themeMode === 'dark' ? _('Switch to day mode') : _('Switch to night mode')
+		}, [ themeMode === 'dark' ? _('Day mode') : _('Night mode') ]);
+		const root = E('div', {
+			'class': 'les-chat-app',
+			'data-les-theme': themeMode
+		}, [
 			E('div', { 'class': 'les-chat-panel' }, [
 				E('div', { 'class': 'les-chat-topbar' }, [
 					E('div', {}, [
@@ -87,7 +116,10 @@ return baseclass.extend({
 							opts.title || _('LES Mesh Chat')
 						])
 					]),
-					this.badge(state)
+					E('div', { 'class': 'les-chat-topbar-actions' }, [
+						themeToggle,
+						this.badge(state)
+					])
 				]),
 				E('div', { 'class': 'les-chat-identity' }, [
 					E('div', { 'class': 'les-chat-id-block' }, [
@@ -103,6 +135,17 @@ return baseclass.extend({
 				opts.body
 			])
 		]);
+
+		themeToggle.addEventListener('click', L.bind(function() {
+			const nextMode = root.getAttribute('data-les-theme') === 'dark' ? 'light' : 'dark';
+			root.setAttribute('data-les-theme', nextMode);
+			themeToggle.setAttribute('aria-pressed', nextMode === 'dark' ? 'true' : 'false');
+			themeToggle.setAttribute('title', nextMode === 'dark' ? _('Switch to day mode') : _('Switch to night mode'));
+			themeToggle.textContent = nextMode === 'dark' ? _('Day mode') : _('Night mode');
+			this.storeThemeMode(nextMode);
+		}, this));
+
+		return root;
 	},
 
 	formatLastSeen: function(ms) {

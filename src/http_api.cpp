@@ -14,6 +14,7 @@
 
 #include <event2/http.h>
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -292,8 +293,25 @@ void HttpApi::get_messages(evhttp_request* request) {
     JsonPtr root = make_json_object();
     JsonPtr items = make_json_array();
     const std::vector<ChatMessage>& messages = messages_.messages();
+    std::vector<ChatMessage> sorted_messages = messages;
+    std::stable_sort(
+        sorted_messages.begin(),
+        sorted_messages.end(),
+        [](const ChatMessage& left, const ChatMessage& right) {
+            if (left.created_at_ms != right.created_at_ms) {
+                return left.created_at_ms < right.created_at_ms;
+            }
+            if (left.origin != right.origin) {
+                return left.origin < right.origin;
+            }
+            if (left.sequence != right.sequence) {
+                return left.sequence < right.sequence;
+            }
+            return left.message_id < right.message_id;
+        }
+    );
 
-    for (const ChatMessage& message : messages) {
+    for (const ChatMessage& message : sorted_messages) {
         JsonPtr item = message_to_json(message);
         json_object_array_add(items.get(), item.release());
     }
@@ -302,7 +320,7 @@ void HttpApi::get_messages(evhttp_request* request) {
     json_object_object_add(
         root.get(),
         "count",
-        json_object_new_int64(static_cast<std::int64_t>(messages.size()))
+        json_object_new_int64(static_cast<std::int64_t>(sorted_messages.size()))
     );
     send_json(request, HTTP_OK, "OK", serialize_json(root.get()));
 }
