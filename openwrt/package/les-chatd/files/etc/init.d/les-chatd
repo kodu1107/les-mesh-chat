@@ -44,6 +44,12 @@ start_service() {
 		discovery_interface="$(detect_discovery_interface)"
 	fi
 	config_get discovery_port main discovery_port 7777
+	config_get time_sync_mode main time_sync_mode client
+	case "$time_sync_mode" in
+		off|authority|client) ;;
+		*) time_sync_mode=client ;;
+	esac
+	config_get time_authority_id main time_authority_id ''
 	config_get database main database /overlay/les-chat/messages.db
 
 	mkdir -p "$(dirname "$database")"
@@ -56,6 +62,8 @@ start_service() {
 		--port "$port" \
 		--discovery-address "$discovery_address" \
 		--discovery-port "$discovery_port" \
+		--time-sync-mode "$time_sync_mode" \
+		--time-authority-id "$time_authority_id" \
 		--database "$database"
 	[ -z "$discovery_interface" ] || procd_append_param command \
 		--discovery-interface "$discovery_interface"

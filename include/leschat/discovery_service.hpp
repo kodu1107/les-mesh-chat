@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 struct event;
 struct event_base;
@@ -11,6 +12,12 @@ struct event_base;
 namespace leschat {
 
 class PeerRegistry;
+
+enum class TimeSyncMode {
+    Off,
+    Authority,
+    Client
+};
 
 class DiscoveryService {
 public:
@@ -21,7 +28,9 @@ public:
         std::uint16_t http_port,
         std::string discovery_address,
         std::string discovery_interface,
-        std::uint16_t discovery_port
+        std::uint16_t discovery_port,
+        TimeSyncMode time_sync_mode,
+        std::string time_authority_id
     );
     ~DiscoveryService();
 
@@ -45,6 +54,10 @@ private:
     void receive_announcements();
     void announce() noexcept;
     void send_announce();
+    void synchronize_time(
+        std::string_view authority_id,
+        std::int64_t authority_time_ms
+    );
     void close_resources() noexcept;
 
     PeerRegistry& registry_;
@@ -53,6 +66,8 @@ private:
     std::string discovery_address_;
     std::string discovery_interface_;
     std::uint16_t discovery_port_;
+    TimeSyncMode time_sync_mode_;
+    std::string time_authority_id_;
     bool announce_failed_{false};
     int socket_{-1};
     event* receive_event_{nullptr};

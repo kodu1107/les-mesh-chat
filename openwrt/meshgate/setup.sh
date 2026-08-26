@@ -15,6 +15,7 @@ bundle_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 install_root=/srv/les-chat-feed
 stage_root=/srv/les-chat-feed.new.$$
 trusted_key_id=9db1776b78018b98
+node_dir=/etc/les-chat
 
 case "$port" in
 	''|*[!0-9]*) usage ;;
@@ -34,6 +35,13 @@ esac
 	echo "this installer must run on OpenWrt" >&2
 	exit 1
 }
+
+mkdir -p "$node_dir"
+touch "$node_dir/time-authority"
+if [ -r /etc/config/les-chat ]; then
+	uci -q set les-chat.main.time_sync_mode='authority' || true
+	uci -q commit les-chat || true
+fi
 
 if [ ! -x /usr/sbin/uhttpd ] && \
 	! /bin/busybox --list 2>/dev/null | grep -qx httpd; then
@@ -92,6 +100,9 @@ uci commit firewall
 /etc/init.d/les-chat-feed restart
 /etc/init.d/les-chat-routing enable
 /etc/init.d/les-chat-routing restart
+if [ -x /etc/init.d/les-chatd ]; then
+	/etc/init.d/les-chatd restart
+fi
 sleep 1
 wget -qO- "http://127.0.0.1:$port/opkg.pub" >/dev/null
 

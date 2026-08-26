@@ -38,6 +38,7 @@ return view.extend({
 
 		s.tab('general', _('General'));
 		s.tab('network', _('Advanced network'));
+		s.tab('time', _('Mesh time'));
 		s.tab('storage', _('Storage'));
 
 		o = s.taboption('general', form.Flag, 'enabled', _('Enabled'),
@@ -81,6 +82,19 @@ return view.extend({
 		o.datatype = 'port';
 		o.placeholder = '7777';
 		o.rmempty = false;
+
+		o = s.taboption('time', form.ListValue, 'time_sync_mode', _('Time sync mode'),
+			_('MeshGate authority time keeps message timestamps aligned without Internet access.'));
+		o.value('client', _('Point / client'));
+		o.value('authority', _('MeshGate authority'));
+		o.value('off', _('Disabled'));
+		o.default = 'client';
+		o.rmempty = false;
+
+		o = s.taboption('time', form.Value, 'time_authority_id', _('Trusted authority Node ID'),
+			_('Optional. Leave empty to accept the first announced MeshGate authority.'));
+		o.placeholder = 'node-bolt';
+
 
 		o = s.taboption('storage', form.Value, 'database', _('Database path'),
 			_('SQLite file on overlay storage. Changing this path does not move existing messages.'));

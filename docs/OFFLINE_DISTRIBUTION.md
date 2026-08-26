@@ -35,6 +35,8 @@ SSH 키를 쓴다면 PowerShell에서 다음처럼 실행할 수도 있습니다
 MeshGate의 IP를 입력합니다. 스크립트는 Pi 4와 Pi 5 패키지가 모두 든 서명된
 피드를 받아 MeshGate에 복사하고 TCP `8088`의 로컬 피드 서비스를 시작합니다.
 기본 방화벽 zone은 `ahwlan`이므로 외부 WAN에는 공개하지 않습니다.
+동시에 MeshGate를 내부 시간 권위 노드로 표시하여, 피어가 발견되면 메시지
+타임스탬프를 MeshGate 기준으로 맞출 수 있게 합니다.
 
 zone이나 포트를 바꿔야 한다면 PowerShell에서 실행합니다.
 

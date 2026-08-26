@@ -79,6 +79,8 @@ Application::Application(
     std::string discovery_address,
     std::string discovery_interface,
     std::uint16_t discovery_port,
+    TimeSyncMode time_sync_mode,
+    std::string time_authority_id,
     std::string database_path
 )
     : identity_(std::move(identity)),
@@ -105,7 +107,9 @@ Application::Application(
         port_,
         std::move(discovery_address),
         std::move(discovery_interface),
-        discovery_port
+        discovery_port,
+        time_sync_mode,
+        std::move(time_authority_id)
     );
     replication_service_ = std::make_unique<ReplicationService>(
         event_base_.get(),

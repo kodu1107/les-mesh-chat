@@ -117,6 +117,11 @@ std::string make_status_json(
         "port",
         json_object_new_int(static_cast<int>(port))
     );
+    json_object_object_add(
+        root.get(),
+        "time_offset_ms",
+        json_object_new_int64(current_time_offset_ms())
+    );
 
     return serialize_json(root.get());
 }

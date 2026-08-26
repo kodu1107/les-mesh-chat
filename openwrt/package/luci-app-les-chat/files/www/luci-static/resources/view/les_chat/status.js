@@ -61,7 +61,8 @@ function renderBody(status, rpcError) {
 			[ _('Process'), running ? _('Running') : _('Not running') ],
 			[ _('Health'), healthzOk ? _('ok') : (status.error || _('unreachable')) ],
 			[ _('HTTP bind'), status.bind_address ],
-			[ _('HTTP port'), status.port ]
+			[ _('HTTP port'), status.port ],
+			[ _('Mesh time offset'), status.time_offset_ms != null ? status.time_offset_ms + ' ms' : '—' ]
 		]),
 		E('p', { 'class': 'les-chat-section-title' }, [ _('Discovery') ]),
 		kv([

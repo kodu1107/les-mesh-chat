@@ -18,6 +18,7 @@ class MessageService;
 class MessageStore;
 class ReplicationService;
 class SyncService;
+enum class TimeSyncMode;
 
 struct EventBaseDeleter {
     void operator()(event_base* base) const noexcept;
@@ -32,6 +33,8 @@ public:
         std::string discovery_address,
         std::string discovery_interface,
         std::uint16_t discovery_port,
+        TimeSyncMode time_sync_mode,
+        std::string time_authority_id,
         std::string database_path
     );
     ~Application();

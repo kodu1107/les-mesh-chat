@@ -65,8 +65,8 @@ make package/luci-app-les-chat/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.12-r1_*.ipk
-opkg install /tmp/luci-app-les-chat_0.1.12-r1_all.ipk
+opkg install /tmp/les-chatd_0.1.13-r1_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.13-r1_all.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
 ```
@@ -101,6 +101,32 @@ uci set les-chat.main.database='/overlay/les-chat/messages.db'
 uci commit les-chat
 /etc/init.d/les-chatd restart
 ```
+
+MeshGate가 있는 구성에서는 MeshGate를 내부 시간 권위 노드로 사용할 수 있습니다.
+MeshGate feed 설치 스크립트는 해당 노드를 자동으로 `authority`로 설정하고,
+다른 노드는 discovery announce를 받은 뒤 시간을 맞춥니다.
+
+수동으로 설정할 때는 MeshGate에서:
+
+```bash
+uci set les-chat.main.time_sync_mode='authority'
+uci commit les-chat
+/etc/init.d/les-chatd restart
+```
+
+Point 노드에서는:
+
+```bash
+uci set les-chat.main.time_sync_mode='client'
+uci set les-chat.main.time_authority_id='node-bolt'
+uci commit les-chat
+/etc/init.d/les-chatd restart
+```
+
+Point는 피어 발견 직후 MeshGate announce의 시간을 사용해 시스템 시계를
+보정합니다. 시스템 시계 변경 권한이 없으면 메시지 타임스탬프에 적용할
+오프셋을 사용합니다. `ahwlan` 내부에서만 동작하므로 외부 인터넷이나 WAN은
+필요하지 않습니다.
 
 `node_id 'auto'`는 최초 초기화 시 `/etc/les-chat/node-id`에 생성된 안정적인 ID를 사용합니다. 두 장비가 같은 node ID 파일을 공유하지 않도록 합니다.
 

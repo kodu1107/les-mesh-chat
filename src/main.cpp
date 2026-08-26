@@ -1,4 +1,5 @@
 #include "leschat/application.hpp"
+#include "leschat/discovery_service.hpp"
 #include "leschat/node_identity.hpp"
 
 #include <algorithm>
@@ -35,6 +36,11 @@ void print_help(const char* program) {
         << "  --discovery-port PORT\n"
         << "                    UDP discovery port\n"
         << "                    Default: 7777\n"
+        << "  --time-sync-mode MODE\n"
+        << "                    off, authority or client\n"
+        << "                    Default: off\n"
+        << "  --time-authority-id ID\n"
+        << "                    Optional trusted MeshGate node ID\n"
         << "  --database PATH  SQLite message database\n"
         << "                    Default: les-chat-<node-id>.db\n"
         << "  --help            Show this help\n";
@@ -106,6 +112,21 @@ void validate_callsign(std::string_view callsign) {
     }
 }
 
+leschat::TimeSyncMode parse_time_sync_mode(const std::string& value) {
+    if (value == "off") {
+        return leschat::TimeSyncMode::Off;
+    }
+    if (value == "authority") {
+        return leschat::TimeSyncMode::Authority;
+    }
+    if (value == "client") {
+        return leschat::TimeSyncMode::Client;
+    }
+    throw std::runtime_error(
+        "Time sync mode must be off, authority or client"
+    );
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -116,6 +137,8 @@ int main(int argc, char* argv[]) {
     std::string discovery_address{"255.255.255.255"};
     std::string discovery_interface;
     std::uint16_t discovery_port{7777};
+    leschat::TimeSyncMode time_sync_mode{leschat::TimeSyncMode::Off};
+    std::string time_authority_id;
     std::string database_path;
 
     try {
@@ -195,6 +218,25 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
+            if (argument == "--time-sync-mode") {
+                time_sync_mode = parse_time_sync_mode(
+                    read_argument_value(index, argc, argv, argument)
+                );
+                continue;
+            }
+
+            if (argument == "--time-authority-id") {
+                time_authority_id = read_argument_value(
+                    index, argc, argv, argument
+                );
+                if (!is_valid_node_id(time_authority_id)) {
+                    throw std::runtime_error(
+                        "Time authority ID is invalid"
+                    );
+                }
+                continue;
+            }
+
             if (argument == "--database") {
                 database_path = read_argument_value(
                     index, argc, argv, argument
@@ -230,6 +272,8 @@ int main(int argc, char* argv[]) {
             std::move(discovery_address),
             std::move(discovery_interface),
             discovery_port,
+            time_sync_mode,
+            std::move(time_authority_id),
             std::move(database_path)
         };
 

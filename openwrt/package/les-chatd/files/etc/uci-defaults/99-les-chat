@@ -15,4 +15,14 @@ fi
 
 chmod 600 "$NODE_ID_FILE"
 
+if [ -e "$NODE_DIR/time-authority" ]; then
+	uci -q set les-chat.main.time_sync_mode='authority' || true
+else
+	uci -q get les-chat.main.time_sync_mode >/dev/null 2>&1 || \
+		uci -q set les-chat.main.time_sync_mode='client' || true
+fi
+uci -q get les-chat.main.time_authority_id >/dev/null 2>&1 || \
+	uci -q set les-chat.main.time_authority_id='' || true
+uci -q commit les-chat || true
+
 exit 0

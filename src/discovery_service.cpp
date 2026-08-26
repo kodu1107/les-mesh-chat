@@ -34,14 +34,18 @@ DiscoveryService::DiscoveryService(
     std::uint16_t http_port,
     std::string discovery_address,
     std::string discovery_interface,
-    std::uint16_t discovery_port
+    std::uint16_t discovery_port,
+    TimeSyncMode time_sync_mode,
+    std::string time_authority_id
 )
     : registry_(registry),
       identity_(std::move(identity)),
       http_port_(http_port),
       discovery_address_(std::move(discovery_address)),
       discovery_interface_(std::move(discovery_interface)),
-      discovery_port_(discovery_port) {
+      discovery_port_(discovery_port),
+      time_sync_mode_(time_sync_mode),
+      time_authority_id_(std::move(time_authority_id)) {
     try {
         socket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
         if (socket_ < 0) {
@@ -184,6 +188,8 @@ void DiscoveryService::receive_announcements() {
 
         json_object* protocol = nullptr;
         json_object* port = nullptr;
+        json_object* authority = nullptr;
+        json_object* authority_time = nullptr;
         std::string type;
         Peer peer{};
         if (!json_object_object_get_ex(parsed.object.get(), "protocol",
@@ -208,6 +214,32 @@ void DiscoveryService::receive_announcements() {
         if (port_value < 1 || port_value > 65535 ||
             peer.node_id == identity_.node_id) {
             continue;
+        }
+
+        bool is_time_authority = false;
+        std::int64_t authority_time_ms = 0;
+        if (json_object_object_get_ex(
+                parsed.object.get(), "time_authority", &authority
+            ) && json_object_is_type(authority, json_type_boolean)) {
+            is_time_authority = json_object_get_boolean(authority) != 0;
+            if (is_time_authority &&
+                (!json_object_object_get_ex(
+                    parsed.object.get(), "time_ms", &authority_time
+                ) || !json_object_is_type(
+                    authority_time, json_type_int
+                ))) {
+                continue;
+            }
+            if (is_time_authority) {
+                authority_time_ms = json_object_get_int64(authority_time);
+            }
+        }
+
+        if (time_sync_mode_ == TimeSyncMode::Client &&
+            is_time_authority &&
+            (time_authority_id_.empty() ||
+             time_authority_id_ == peer.node_id)) {
+            synchronize_time(peer.node_id, authority_time_ms);
         }
 
         std::array<char, INET_ADDRSTRLEN> address_text{};
@@ -236,6 +268,18 @@ void DiscoveryService::send_announce() {
                            json_object_new_int(static_cast<int>(http_port_)));
     json_object_object_add(root.get(), "app_version",
                            json_object_new_string(app_version));
+    if (time_sync_mode_ == TimeSyncMode::Authority) {
+        json_object_object_add(
+            root.get(),
+            "time_authority",
+            json_object_new_boolean(1)
+        );
+        json_object_object_add(
+            root.get(),
+            "time_ms",
+            json_object_new_int64(current_time_ms())
+        );
+    }
 
     const std::string payload = serialize_json(root.get());
 
@@ -315,6 +359,41 @@ void DiscoveryService::send_announce() {
             "Discovery datagram was not sent completely"
         );
     }
+}
+
+void DiscoveryService::synchronize_time(
+    std::string_view authority_id,
+    std::int64_t authority_time_ms
+) {
+    if (authority_time_ms <= 0) {
+        return;
+    }
+
+    const std::int64_t measured_offset =
+        authority_time_ms - system_time_ms();
+    const std::int64_t current_offset = current_time_offset_ms();
+    const std::int64_t offset_delta = measured_offset - current_offset;
+    if (offset_delta > -250 && offset_delta < 250) {
+        return;
+    }
+
+    if (set_system_time_ms(authority_time_ms)) {
+        std::cerr
+            << "Time synchronized from MeshGate "
+            << authority_id
+            << " (offset "
+            << measured_offset
+            << " ms)\n";
+        return;
+    }
+
+    set_time_offset_ms(measured_offset);
+    std::cerr
+        << "System clock update unavailable; using MeshGate time offset "
+        << measured_offset
+        << " ms from "
+        << authority_id
+        << '\n';
 }
 
 }  // namespace leschat
