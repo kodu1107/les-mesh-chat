@@ -395,7 +395,11 @@ void HttpApi::create_message(evhttp_request* request) {
     JsonPtr response = make_json_object();
     JsonPtr message_json = message_to_json(message);
     json_object_object_add(response.get(), "message", message_json.release());
-    send_json(request, 201, "Created", serialize_json(response.get()));
+    // OpenWrt's default wget implementation (uclient-fetch) only accepts a
+    // small set of successful status codes and treats 201 as an HTTP error.
+    // rpcd uses that client to bridge LuCI to the local daemon, so return 200
+    // to ensure it reads the response body after the message is stored.
+    send_json(request, HTTP_OK, "OK", serialize_json(response.get()));
 }
 
 void HttpApi::get_peers(evhttp_request* request) {

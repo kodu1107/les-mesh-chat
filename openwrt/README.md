@@ -68,8 +68,8 @@ make package/luci-app-les-chat/compile LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" 
 완성된 IPK를 장비의 `/tmp` 디렉터리로 복사한 후 설치합니다:
 
 ```bash
-opkg install /tmp/les-chatd_0.1.17-*_*.ipk
-opkg install /tmp/luci-app-les-chat_0.1.17-*_all.ipk
+opkg install /tmp/les-chatd_0.1.18-*_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.18-*_all.ipk
 
 # 서비스 활성화 및 시작
 /etc/init.d/les-chatd enable

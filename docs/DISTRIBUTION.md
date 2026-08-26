@@ -84,7 +84,7 @@ SDK="$HOME/sdk/pi5-bcm2712/openwrt-sdk-24.10.2-bcm27xx-bcm2712_gcc-13.3.0_musl.L
 
 ### (2) Git 태그 생성 및 푸시
 ```bash
-RELEASE=0.1.17
+RELEASE=0.1.18
 
 # 로컬 커밋 및 태그 생성
 git tag -a "v${RELEASE}" -m "LES Mesh Chat ${RELEASE}"

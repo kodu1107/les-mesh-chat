@@ -123,10 +123,18 @@ if ! wait_for_text \
 	exit 1
 fi
 
-curl -fsS \
+node_a_status=$(curl -sS \
+	-o "$test_dir/node-a-send.json" \
+	-w '%{http_code}' \
 	-H 'Content-Type: application/json' \
 	-d '{"body":"message from node a"}' \
-	http://127.0.0.1:18777/api/v1/messages >/dev/null
+	http://127.0.0.1:18777/api/v1/messages)
+if [ "$node_a_status" != 200 ] ||
+   ! grep -Fq '"message"' "$test_dir/node-a-send.json"; then
+	show_logs
+	echo "node-a send response was not OpenWrt wget compatible" >&2
+	exit 1
+fi
 
 if ! wait_for_text \
 	http://127.0.0.1:18778/api/v1/messages 'message from node a'; then
@@ -135,10 +143,18 @@ if ! wait_for_text \
 	exit 1
 fi
 
-curl -fsS \
+node_b_status=$(curl -sS \
+	-o "$test_dir/node-b-send.json" \
+	-w '%{http_code}' \
 	-H 'Content-Type: application/json' \
 	-d '{"body":"message from node b"}' \
-	http://127.0.0.1:18778/api/v1/messages >/dev/null
+	http://127.0.0.1:18778/api/v1/messages)
+if [ "$node_b_status" != 200 ] ||
+   ! grep -Fq '"message"' "$test_dir/node-b-send.json"; then
+	show_logs
+	echo "node-b send response was not OpenWrt wget compatible" >&2
+	exit 1
+fi
 
 if ! wait_for_text \
 	http://127.0.0.1:18777/api/v1/messages 'message from node b'; then

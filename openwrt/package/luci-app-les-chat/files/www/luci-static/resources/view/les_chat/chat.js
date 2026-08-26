@@ -256,7 +256,7 @@ return view.extend({
 				}
 
 				this.sending = true;
-				const sendStartedAt = Date.now();
+				const knownBeforeSend = Object.assign({}, this.knownIds);
 				input.disabled = true;
 				send.disabled = true;
 				hint.textContent = _('Sending…');
@@ -278,7 +278,9 @@ return view.extend({
 
 				/*
 				 * The daemon stores before replying.  If rpcd/wget drops the reply,
-				 * confirm the write from the local history before reporting an error.
+				 * confirm a newly assigned message ID from local history before
+				 * reporting an error.  Do not compare browser and node timestamps:
+				 * an offline mesh can legitimately have different clocks.
 				 * This avoids the misleading "Could not send" state seen when the
 				 * message is already visible after the next poll.
 				 */
@@ -294,11 +296,11 @@ return view.extend({
 								continue;
 							if (this.localNodeId && message.origin !== this.localNodeId)
 								continue;
-							const created = Number(message.created_at_ms);
-							if (!Number.isFinite(created) || created >= sendStartedAt - 30000) {
-								stored = message;
-								break;
-							}
+							const messageId = message.id || message.message_id || '';
+							if (!messageId || knownBeforeSend[messageId])
+								continue;
+							stored = message;
+							break;
 						}
 
 						if (stored) {
