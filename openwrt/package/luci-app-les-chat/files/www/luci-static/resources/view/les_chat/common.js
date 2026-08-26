@@ -1,4 +1,5 @@
 'use strict';
+'require baseclass';
 
 let cssLoaded = false;
 
@@ -6,7 +7,7 @@ function isTrue(value) {
 	return value === true || value === 1 || value === '1';
 }
 
-return {
+return baseclass.extend({
 	loadCss: function() {
 		if (cssLoaded || document.getElementById('les-chat-stylesheet'))
 			return;
@@ -136,4 +137,4 @@ return {
 			return '';
 		return date.toLocaleTimeString();
 	}
-};
+});
