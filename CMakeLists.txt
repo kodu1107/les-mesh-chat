@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     les_mesh_chat
-    VERSION 0.1.8
+    VERSION 0.1.9
     LANGUAGES CXX
 )
 
