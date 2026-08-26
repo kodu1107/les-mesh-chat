@@ -84,7 +84,7 @@ SDK="$HOME/sdk/pi5-bcm2712/openwrt-sdk-24.10.2-bcm27xx-bcm2712_gcc-13.3.0_musl.L
 
 ### (2) Git 태그 생성 및 푸시
 ```bash
-RELEASE=0.1.16
+RELEASE=0.1.17
 
 # 로컬 커밋 및 태그 생성
 git tag -a "v${RELEASE}" -m "LES Mesh Chat ${RELEASE}"
@@ -135,4 +135,3 @@ opkg upgrade les-chatd luci-app-les-chat
 
 * [**오프라인 장비 및 MeshGate 배포 가이드**](OFFLINE_DISTRIBUTION.md): 외부 인터넷이 차단된 현장 장비 배포 방법
 * [**OpenWrt 및 LuCI 상세 설정**](../openwrt/README.md): 방화벽, 인터페이스 및 LuCI 화면 설정
-

@@ -7,6 +7,7 @@ root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 required_files='openwrt/package/les-chatd/Makefile
 openwrt/package/les-chatd/files/etc/config/les-chat
 openwrt/package/les-chatd/files/etc/init.d/les-chatd
+openwrt/package/les-chatd/files/etc/init.d/les-chat-routing
 openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat
 openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-chatd
 openwrt/package/luci-app-les-chat/Makefile
@@ -56,6 +57,14 @@ grep -q 'node-id' "$root/openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-
 grep -q 'callsign' "$root/openwrt/package/les-chatd/files/lib/upgrade/keep.d/les-chatd"
 grep -q -- '--discovery-interface' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
+grep -q 'les_chatd_tcp' \
+	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
+grep -q 'les_chatd_udp' \
+	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
+grep -q 'advmss 1160' \
+	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chat-routing"
+grep -q 'procd_add_interface_trigger' \
+	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chat-routing"
 grep -q '^PKG_LICENSE:=MIT$' "$root/openwrt/package/les-chatd/Makefile"
 grep -q '^PKG_LICENSE_FILES:=LICENSE$' "$root/openwrt/package/les-chatd/Makefile"
 grep -q '^PKG_BUILD_DEPENDS:=libevent2 libjson-c sqlite3$' \
@@ -102,6 +111,7 @@ sh -n \
 	"$root/openwrt/meshgate/les-chat-feed.init" \
 	"$root/openwrt/meshgate/les-chat-routing.init" \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd" \
+	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chat-routing" \
 	"$root/openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat" \
 	"$root/openwrt/package/luci-app-les-chat/files/etc/uci-defaults/80-luci-app-les-chat" \
 	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"

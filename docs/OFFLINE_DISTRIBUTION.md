@@ -74,6 +74,7 @@ SSH 키 인증이나 사용자 지정 파라미터를 사용하는 경우 PowerS
 * 방화벽 `ahwlan` zone에 `8088` 포트 허용
 * MeshGate를 **내부 시간 권위 노드(`authority`)**로 설정하여 메시 전체 시계 동기화 지원
 * LAN/HaLow 중복 대역에서의 아웃바운드 라우팅 자동 구성 (`/etc/init.d/les-chat-routing`)
+* HaLow 인터페이스 재연결 후에도 라우팅을 자동 복구하고 TCP MSS를 경로 MTU에 맞춤
 
 ---
 
@@ -110,4 +111,3 @@ wget -qO- http://10.41.0.1:8088/install.sh | \
 
 > ⚠️ **펌웨어 호환성:**  
 > OpenWrt `24.10.2` (리비전 `r28739-d9340319c6`) 기반의 OpenMANET 1.7.0 펌웨어를 지원합니다. 펌웨어 기본 내장 패키지(`libc`, `luci-base`)는 변경하지 않고 애플리케이션 전용 라이브러리만 안전하게 추가됩니다.
-

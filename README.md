@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-20-brightgreen.svg)](CMakeLists.txt)
 [![Target Platform](https://img.shields.io/badge/Platform-OpenMANET%20%7C%20OpenWrt%2024.10-orange.svg)](openwrt/README.md)
-[![Release](https://img.shields.io/badge/Release-v0.1.16-informational.svg)](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.16)
+[![Release](https://img.shields.io/badge/Release-v0.1.17-informational.svg)](https://github.com/kodu1107/les-mesh-chat/releases/tag/v0.1.17)
 
 **LES Mesh Chat** is an offline-first, decentralized P2P text communication system designed for **OpenMANET** and **OpenWrt** routers over **802.11ah HaLow** and **BATMAN-adv** mesh networks. It operates entirely without internet access, DNS, or central servers.
 

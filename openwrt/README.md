@@ -68,8 +68,8 @@ make package/luci-app-les-chat/compile LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" 
 완성된 IPK를 장비의 `/tmp` 디렉터리로 복사한 후 설치합니다:
 
 ```bash
-opkg install /tmp/les-chatd_0.1.16-*_*.ipk
-opkg install /tmp/luci-app-les-chat_0.1.16-*_all.ipk
+opkg install /tmp/les-chatd_0.1.17-*_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.17-*_all.ipk
 
 # 서비스 활성화 및 시작
 /etc/init.d/les-chatd enable
@@ -84,6 +84,7 @@ opkg install /tmp/luci-app-les-chat_0.1.16-*_all.ipk
 | `/usr/share/les-chat/web/` | 독립 웹 UI 정적 리소스 (HTML/JS/CSS) |
 | `/etc/config/les-chat` | UCI 서비스 설정 파일 |
 | `/etc/init.d/les-chatd` | OpenWrt procd 서비스 init 스크립트 |
+| `/etc/init.d/les-chat-routing` | 중복 LAN/HaLow 대역용 source-policy route 서비스 |
 | `/etc/uci-defaults/99-les-chat` | 초기화 스크립트 (Node ID 생성 및 기본값 적용) |
 | `/usr/libexec/rpcd/luci.leschat` | LuCI 통신용 rpcd 플러그인 |
 | `/usr/share/luci/menu.d/luci-app-les-chat.json` | LuCI 메뉴 등록 파일 |
@@ -133,9 +134,11 @@ uci commit les-chat
 
 ---
 
-## 🛡️ 방화벽 설정
+## 🛡️ 방화벽 및 중복 대역 라우팅
 
-WAN은 차단하고 실제 메시 네트워크 zone(`ahwlan`)에만 TCP/UDP 7777 포트를 허용합니다:
+`les-chatd`를 시작하면 `ahwlan` zone에 TCP/UDP 7777 규칙을 자동으로
+설치합니다. WAN에는 규칙을 열지 않습니다. 이미 설치된 장비에서 규칙을
+즉시 복구하려면 다음 명령을 실행할 수 있습니다:
 
 ```bash
 uci add firewall rule
@@ -154,6 +157,19 @@ uci set firewall.@rule[-1].target='ACCEPT'
 
 uci commit firewall
 /etc/init.d/firewall restart
+```
+
+MeshGate처럼 `br-lan`과 `br-ahwlan`이 같은 `10.41.0.0/16` 대역을 동시에
+사용하는 장비에는 `les-chat-routing` 서비스가 함께 설치됩니다. 이 서비스는
+HaLow 인터페이스의 실제 주소가 올라온 뒤 source-policy route를 구성하고,
+인터페이스가 재연결될 때 자동으로 다시 적용합니다. 수동 확인은 다음과
+같습니다:
+
+```sh
+/etc/init.d/les-chat-routing enable
+/etc/init.d/les-chat-routing restart
+ip rule show
+ip route show table 1000
 ```
 
 ---

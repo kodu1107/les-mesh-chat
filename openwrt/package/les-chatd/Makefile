@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=les-chatd
-LESCHAT_VERSION?=0.1.16
+LESCHAT_VERSION?=0.1.17
 LESCHAT_RELEASE?=1
 PKG_VERSION:=$(LESCHAT_VERSION)
 PKG_RELEASE:=$(LESCHAT_RELEASE)
@@ -53,6 +53,7 @@ define Package/les-chatd/install
 	$(INSTALL_CONF) ./files/etc/config/les-chat $(1)/etc/config/les-chat
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/les-chatd $(1)/etc/init.d/les-chatd
+	$(INSTALL_BIN) ./files/etc/init.d/les-chat-routing $(1)/etc/init.d/les-chat-routing
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-les-chat $(1)/etc/uci-defaults/99-les-chat
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d

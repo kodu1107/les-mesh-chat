@@ -64,6 +64,29 @@ function compareMessages(left, right) {
 	return leftId < rightId ? -1 : 1;
 }
 
+/*
+ * rpcd normally returns the method object directly, but older LuCI/rpcd
+ * combinations can wrap a single result in an array (or leave it as a JSON
+ * string).  Keep the send path tolerant of both forms so a successful daemon
+ * write is not shown as a client-side failure.
+ */
+function normalizeRpcResult(result) {
+	let value = result;
+	while (Array.isArray(value) && value.length === 1)
+		value = value[0];
+
+	if (typeof value === 'string') {
+		try {
+			value = JSON.parse(value);
+		}
+		catch (error) {
+			return {};
+		}
+	}
+
+	return value && typeof value === 'object' ? value : {};
+}
+
 return view.extend({
 	composing: false,
 	sending: false,
@@ -233,23 +256,61 @@ return view.extend({
 				}
 
 				this.sending = true;
+				const sendStartedAt = Date.now();
 				input.disabled = true;
 				send.disabled = true;
 				hint.textContent = _('Sending…');
 				hint.className = 'les-chat-hint';
 
-				return callSend(body).then(L.bind(function(result) {
-					if (result && result.error)
-						throw new Error(result.error);
-					if (result && result.message)
-						this.appendMessage(list, result.message);
+				const markSent = L.bind(function(result) {
+					const response = normalizeRpcResult(result);
+					if (response.error)
+						throw new Error(response.error);
+					if (response.message)
+						this.appendMessage(list, response.message);
 					input.value = '';
 					hint.textContent = _('Sent');
 					this.pinnedToBottom = true;
 					hasNewMessages = false;
 					list.scrollTop = list.scrollHeight;
 					jump.style.display = 'none';
-				}, this)).catch(function(error) {
+				}, this);
+
+				/*
+				 * The daemon stores before replying.  If rpcd/wget drops the reply,
+				 * confirm the write from the local history before reporting an error.
+				 * This avoids the misleading "Could not send" state seen when the
+				 * message is already visible after the next poll.
+				 */
+				const confirmStored = L.bind(function(error) {
+					return callMessages().then(L.bind(function(history) {
+						const response = normalizeRpcResult(history);
+						const messages = Array.isArray(response.messages)
+							? response.messages : [];
+						let stored = null;
+						for (let i = messages.length - 1; i >= 0; i--) {
+							const message = messages[i];
+							if (!message || message.body !== body)
+								continue;
+							if (this.localNodeId && message.origin !== this.localNodeId)
+								continue;
+							const created = Number(message.created_at_ms);
+							if (!Number.isFinite(created) || created >= sendStartedAt - 30000) {
+								stored = message;
+								break;
+							}
+						}
+
+						if (stored) {
+							markSent({ message: stored });
+							return;
+						}
+
+						throw error;
+					}, this));
+				}, this);
+
+				return callSend(body).then(markSent).catch(confirmStored).catch(function(error) {
 					hint.textContent = _('Could not send the message.');
 					hint.className = 'les-chat-hint les-chat-hint-error';
 					console.error(error);

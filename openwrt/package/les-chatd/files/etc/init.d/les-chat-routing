@@ -49,6 +49,8 @@ start() {
 	interface=$(mesh_interface)
 	[ -n "$interface" ] || return 0
 
+	# Network interfaces may receive their address after rc.common starts. Retry
+	# briefly and let the interface trigger below repair the route later as well.
 	attempt=0
 	while [ "$attempt" -lt 15 ]; do
 		if apply_route "$interface"; then
