@@ -89,12 +89,21 @@ wget -qO- https://YOUR_ACCOUNT.github.io/les-mesh-chat/install.sh | sh
 ```
 
 이 설치기는 OpenWrt `24.10.2`와 Pi 4/Pi 5 패키지 아키텍처를 확인하고,
-공개 키와 feed를 등록한 후 `les-chatd`를 설치 또는 업그레이드합니다. 이후에는
-다음 명령만으로 배포된 최신 패키지를 적용할 수 있습니다.
+공개 키와 feed를 등록한 후 `les-chatd`와 `luci-app-les-chat`를 설치 또는
+업그레이드합니다. 이후에는 다음 명령으로 배포된 최신 패키지를 적용할 수
+있습니다.
 
 ```bash
 opkg update
-opkg upgrade les-chatd
+opkg upgrade les-chatd luci-app-les-chat
+```
+
+LuCI UI만 올리려면 `opkg upgrade luci-app-les-chat`만 실행합니다. UI 패키지는
+`les-chatd`에 의존하므로 처음에는 다음 한 번으로도 설치됩니다.
+
+```bash
+opkg update
+opkg install luci-app-les-chat
 ```
 
 설치 후 장비별 호출 부호와 메시 네트워크 방화벽 zone 설정은

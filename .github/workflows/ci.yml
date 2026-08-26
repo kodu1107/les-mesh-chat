@@ -35,7 +35,9 @@ jobs:
             openwrt/offline/install.sh \
             openwrt/meshgate/setup.sh \
             openwrt/meshgate/les-chat-feed.init \
-            openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat
+            openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat \
+            openwrt/package/luci-app-les-chat/files/etc/uci-defaults/80-luci-app-les-chat \
+            openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat
           ./tools/validate_openwrt_package.sh
 
       - name: Configure and build

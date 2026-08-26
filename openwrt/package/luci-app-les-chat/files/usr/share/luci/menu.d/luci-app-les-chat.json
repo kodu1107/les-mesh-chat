@@ -1,0 +1,47 @@
+{
+	"admin/services/les-chat": {
+		"title": "LES Mesh Chat",
+		"order": 80,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-les-chat" ]
+		}
+	},
+	"admin/services/les-chat/chat": {
+		"title": "Chat",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "les_chat/chat"
+		}
+	},
+	"admin/services/les-chat/peers": {
+		"title": "Peers",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "les_chat/peers"
+		}
+	},
+	"admin/services/les-chat/status": {
+		"title": "Status",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "les_chat/status"
+		}
+	},
+	"admin/services/les-chat/settings": {
+		"title": "Settings",
+		"order": 40,
+		"action": {
+			"type": "view",
+			"path": "les_chat/settings"
+		},
+		"depends": {
+			"acl": [ "luci-app-les-chat-settings" ]
+		}
+	}
+}

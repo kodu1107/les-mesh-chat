@@ -17,5 +17,8 @@ install.sh
 Actions secret `OPKG_SIGNING_KEY`. Store the matching public key in
 `OPKG_SIGNING_PUBLIC_KEY`; the workflow publishes it as `opkg.pub`.
 
+Each architecture index includes the `les-chatd` daemon IPK and the
+architecture-independent `luci-app-les-chat` UI IPK.
+
 The installer checks the OpenWrt release and package architecture before it
 changes `/etc/opkg/customfeeds.conf`.

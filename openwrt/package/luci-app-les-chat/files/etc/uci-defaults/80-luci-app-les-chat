@@ -1,0 +1,9 @@
+#!/bin/sh
+
+rm -f /tmp/luci-indexcache*
+
+if [ -x /etc/init.d/rpcd ]; then
+	/etc/init.d/rpcd restart >/dev/null 2>&1 || true
+fi
+
+exit 0

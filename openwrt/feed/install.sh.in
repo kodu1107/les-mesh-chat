@@ -96,7 +96,8 @@ for package_name in \
 	libevent2-7 \
 	libjson-c5 \
 	libsqlite3-0 \
-	les-chatd
+	les-chatd \
+	luci-app-les-chat
 do
 	filename=$(
 		awk -v wanted="$package_name" '
@@ -147,6 +148,10 @@ if [ -x /etc/uci-defaults/99-les-chat ]; then
 	/etc/uci-defaults/99-les-chat
 fi
 
+if [ -x /etc/uci-defaults/80-luci-app-les-chat ]; then
+	/etc/uci-defaults/80-luci-app-les-chat
+fi
+
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd restart
 
@@ -154,6 +159,7 @@ sleep 1
 wget -qO- http://127.0.0.1:7777/healthz
 echo
 echo "LES Mesh Chat is available on port 7777."
+echo "LuCI menu: Services → LES Mesh Chat"
 
 rm -rf "$download_dir" "$key_tmp"
 trap - EXIT INT TERM

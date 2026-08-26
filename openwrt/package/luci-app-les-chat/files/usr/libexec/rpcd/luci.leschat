@@ -1,0 +1,155 @@
+#!/bin/sh
+
+# shellcheck disable=SC1091
+. /usr/share/libubox/jshn.sh
+
+sanitize_port() {
+	port=$1
+	case "$port" in
+		''|*[!0-9]*)
+			echo 7777
+			return
+			;;
+	esac
+	if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+		echo 7777
+		return
+	fi
+	echo "$port"
+}
+
+uci_get_default() {
+	value=$(uci -q get "les-chat.main.$1")
+	if [ -n "$value" ]; then
+		echo "$value"
+	else
+		echo "$2"
+	fi
+}
+
+daemon_port() {
+	sanitize_port "$(uci_get_default port 7777)"
+}
+
+database_path() {
+	uci_get_default database /overlay/les-chat/messages.db
+}
+
+database_bytes() {
+	path=$(database_path)
+	if [ -f "$path" ]; then
+		stat -c %s "$path" 2>/dev/null || echo 0
+	else
+		echo 0
+	fi
+}
+
+daemon_running() {
+	pidof les-chatd >/dev/null 2>&1
+}
+
+fetch_local() {
+	path=$1
+	port=$(daemon_port)
+	wget -qO- -T 2 "http://127.0.0.1:${port}${path}" 2>/dev/null || true
+}
+
+dump_unreachable() {
+	json_init
+	json_add_boolean running 0
+	json_add_boolean healthz_ok 0
+	json_add_string error "daemon_unreachable"
+	json_add_string node_id "$(uci_get_default node_id auto)"
+	json_add_string callsign "$(uci_get_default callsign auto)"
+	json_add_string bind_address "$(uci_get_default bind 0.0.0.0)"
+	json_add_int port "$(daemon_port)"
+	json_add_string database "$(database_path)"
+	json_add_int database_bytes "$(database_bytes)"
+	json_dump
+}
+
+call_healthz() {
+	body=$(fetch_local /healthz)
+	json_init
+	if [ -n "$body" ] && json_load "$body"; then
+		json_add_boolean running 1
+		json_add_boolean healthz_ok 1
+		json_dump
+		return
+	fi
+
+	json_init
+	if daemon_running; then
+		json_add_boolean running 1
+	else
+		json_add_boolean running 0
+	fi
+	json_add_boolean healthz_ok 0
+	json_add_string error "daemon_unreachable"
+	json_dump
+}
+
+call_status() {
+	body=$(fetch_local /api/v1/status)
+	if [ -n "$body" ] && json_load "$body"; then
+		if daemon_running; then
+			json_add_boolean running 1
+		else
+			json_add_boolean running 0
+		fi
+		json_add_boolean healthz_ok 1
+		json_add_string database "$(database_path)"
+		json_add_int database_bytes "$(database_bytes)"
+		json_dump
+		return
+	fi
+
+	dump_unreachable
+}
+
+call_peers() {
+	body=$(fetch_local /api/v1/peers)
+	if [ -n "$body" ] && json_load "$body"; then
+		if daemon_running; then
+			json_add_boolean running 1
+		else
+			json_add_boolean running 0
+		fi
+		json_dump
+		return
+	fi
+
+	json_init
+	json_add_boolean running 0
+	json_add_string error "daemon_unreachable"
+	json_add_array peers
+	json_close_array
+	json_add_int count 0
+	json_dump
+}
+
+case "$1" in
+	list)
+		json_init
+		json_add_object healthz
+		json_close_object
+		json_add_object status
+		json_close_object
+		json_add_object peers
+		json_close_object
+		json_dump
+		;;
+	call)
+		case "$2" in
+			healthz)
+				call_healthz
+				;;
+			status)
+				call_status
+				;;
+			peers)
+				call_peers
+				;;
+		esac
+		;;
+esac

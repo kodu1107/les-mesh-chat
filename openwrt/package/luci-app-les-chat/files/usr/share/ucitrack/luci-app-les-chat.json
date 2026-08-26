@@ -1,0 +1,4 @@
+{
+	"config": "les-chat",
+	"init": "les-chatd"
+}

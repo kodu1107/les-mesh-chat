@@ -13,7 +13,7 @@ fi
 
 sdk_dir=$1
 output_dir=$2
-version=${3:-0.1.7}
+version=${3:-0.1.8}
 release=${4:-1}
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 
@@ -41,8 +41,12 @@ esac
 	exit 1
 }
 
-mkdir -p "$output_dir" "$sdk_dir/package/les-chatd"
+mkdir -p "$output_dir" \
+	"$sdk_dir/package/les-chatd" \
+	"$sdk_dir/package/luci-app-les-chat"
 cp -a "$repo_root/openwrt/package/les-chatd/." "$sdk_dir/package/les-chatd/"
+cp -a "$repo_root/openwrt/package/luci-app-les-chat/." \
+	"$sdk_dir/package/luci-app-les-chat/"
 
 (
 	cd "$sdk_dir"
@@ -103,21 +107,41 @@ cp -a "$repo_root/openwrt/package/les-chatd/." "$sdk_dir/package/les-chatd/"
 		LESCHAT_RELEASE="$release" \
 		NO_DEPS=1 \
 		V=s
+
+	make package/luci-app-les-chat/clean
+	make package/luci-app-les-chat/compile \
+		LESCHAT_SOURCE_DIR="$repo_root" \
+		LESCHAT_VERSION="$version" \
+		LESCHAT_RELEASE="$release" \
+		NO_DEPS=1 \
+		V=s
 )
 
-ipk_path=$(find "$sdk_dir/bin/packages" -type f \
-	-name "les-chatd_${version}-r${release}_*.ipk" -print -quit)
-
-[ -n "$ipk_path" ] || {
-	echo "les-chatd IPK was not produced" >&2
-	exit 1
+copy_ipk() {
+	description=$1
+	shift
+	ipk_path=
+	for pattern in "$@"; do
+		ipk_path=$(find "$sdk_dir/bin/packages" -type f \
+			-name "$pattern" -print -quit)
+		[ -z "$ipk_path" ] || break
+	done
+	[ -n "$ipk_path" ] || {
+		echo "$description IPK was not produced" >&2
+		exit 1
+	}
+	ipk_name=$(basename "$ipk_path")
+	cp "$ipk_path" "$output_dir/"
+	(
+		cd "$output_dir"
+		sha256sum "$ipk_name" > "$ipk_name.sha256"
+	)
+	echo "$output_dir/$ipk_name"
 }
 
-ipk_name=$(basename "$ipk_path")
-cp "$ipk_path" "$output_dir/"
-(
-	cd "$output_dir"
-	sha256sum "$ipk_name" > "$ipk_name.sha256"
-)
-
-echo "$output_dir/$ipk_name"
+copy_ipk les-chatd \
+	"les-chatd_${version}-r${release}_*.ipk" \
+	"les-chatd_${version}-${release}_*.ipk"
+copy_ipk luci-app-les-chat \
+	"luci-app-les-chat_${version}-r${release}_all.ipk" \
+	"luci-app-les-chat_${version}-${release}_all.ipk"

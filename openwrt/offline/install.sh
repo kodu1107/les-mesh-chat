@@ -84,7 +84,8 @@ set -- \
 	"$package_dir"/libevent2-7_*_"$package_arch".ipk \
 	"$package_dir"/libjson-c5_*_"$package_arch".ipk \
 	"$package_dir"/libsqlite3-0_*_"$package_arch".ipk \
-	"$package_dir"/les-chatd_*_"$package_arch".ipk
+	"$package_dir"/les-chatd_*_"$package_arch".ipk \
+	"$package_dir"/luci-app-les-chat_*_all.ipk
 
 for package in "$@"; do
 	[ -f "$package" ] || {
@@ -101,6 +102,10 @@ if [ -x /etc/uci-defaults/99-les-chat ]; then
 	/etc/uci-defaults/99-les-chat
 fi
 
+if [ -x /etc/uci-defaults/80-luci-app-les-chat ]; then
+	/etc/uci-defaults/80-luci-app-les-chat
+fi
+
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd restart
 
@@ -108,3 +113,4 @@ sleep 1
 wget -qO- http://127.0.0.1:7777/healthz
 echo
 echo "LES Mesh Chat is available on port 7777."
+echo "LuCI menu: Services → LES Mesh Chat"

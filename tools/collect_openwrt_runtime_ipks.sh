@@ -55,5 +55,6 @@ copy_one "$sdk_dir/bin" "libevent2-7_*_${arch}.ipk" libevent2-7
 copy_one "$sdk_dir/bin" "libjson-c5_*_${arch}.ipk" libjson-c5
 copy_one "$sdk_dir/bin" "libsqlite3-0_*_${arch}.ipk" libsqlite3-0
 copy_one "$app_ipk_dir" "les-chatd_*_${arch}.ipk" les-chatd
+copy_one "$app_ipk_dir" "luci-app-les-chat_*_all.ipk" luci-app-les-chat
 
 echo "$output_dir"

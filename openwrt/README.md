@@ -20,7 +20,8 @@ GitHub Release와 서명된 opkg 피드를 자동 운영하는 방법은
 
 ### 수동 빌드
 
-OpenWrt SDK 또는 Buildroot 환경에 이 패키지를 `package/les-chatd`로 복사하고 소스 저장소 경로를 지정합니다.
+OpenWrt SDK 또는 Buildroot 환경에 `package/les-chatd`와
+`package/luci-app-les-chat`를 복사하고 소스 저장소 경로를 지정합니다.
 
 공식 SDK에는 feed 소스와 개발 헤더가 기본으로 staging되어 있지 않으므로, 먼저 `base`와 `packages` feed에서 빌드 의존성을 준비합니다.
 
@@ -41,12 +42,17 @@ SQLite CLI는 사용하지 않으므로 `sqlite3`나 `sqlite3-cli` 대신 `libsq
 ```bash
 cp -a /path/to/les-mesh-chat/openwrt/package/les-chatd/. \
     package/les-chatd/
+cp -a /path/to/les-mesh-chat/openwrt/package/luci-app-les-chat/. \
+    package/luci-app-les-chat/
 ```
 
 ```bash
 export LESCHAT_SOURCE_DIR=/path/to/les-mesh-chat
 make package/les-chatd/clean
 make package/les-chatd/compile \
+    LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" V=s
+make package/luci-app-les-chat/clean
+make package/luci-app-les-chat/compile \
     LESCHAT_SOURCE_DIR="$LESCHAT_SOURCE_DIR" V=s
 ```
 
@@ -59,9 +65,17 @@ make package/les-chatd/compile \
 IPK를 장비로 복사한 뒤 다음을 실행합니다.
 
 ```bash
-opkg install /tmp/les-chatd_0.1.7-r1_*.ipk
+opkg install /tmp/les-chatd_0.1.8-r1_*.ipk
+opkg install /tmp/luci-app-les-chat_0.1.8-r1_all.ipk
 /etc/init.d/les-chatd enable
 /etc/init.d/les-chatd start
+```
+
+`luci-app-les-chat`는 `les-chatd`와 `luci-base`에 의존하므로 UI만 설치해도 daemon이 따라옵니다.
+
+```bash
+opkg update
+opkg install luci-app-les-chat
 ```
 
 설치된 파일:
@@ -72,6 +86,9 @@ opkg install /tmp/les-chatd_0.1.7-r1_*.ipk
 /etc/config/les-chat
 /etc/init.d/les-chatd
 /etc/uci-defaults/99-les-chat
+/usr/libexec/rpcd/luci.leschat
+/usr/share/luci/menu.d/luci-app-les-chat.json
+/www/luci-static/resources/view/les_chat/
 ```
 
 ## 설정
@@ -127,4 +144,8 @@ curl -s http://127.0.0.1:7777/healthz
 curl -s http://127.0.0.1:7777/api/v1/peers
 ```
 
+LuCI에서는 **Services → LES Mesh Chat** 메뉴로 Status, Peers, Settings, Chat에
+들어갑니다. Chat은 장비 호스트명과 UCI HTTP 포트의 기존 웹 UI를 엽니다.
+
 패키지 업데이트 시 새 IPK를 설치하면 기존 `/overlay/les-chat/messages.db`와 node ID는 유지됩니다.
+`les-chatd`와 `luci-app-les-chat`는 같은 피드에 있지만 따로 업그레이드할 수 있습니다.

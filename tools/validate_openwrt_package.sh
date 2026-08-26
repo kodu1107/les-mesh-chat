@@ -8,6 +8,16 @@ required_files='openwrt/package/les-chatd/Makefile
 openwrt/package/les-chatd/files/etc/config/les-chat
 openwrt/package/les-chatd/files/etc/init.d/les-chatd
 openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat
+openwrt/package/luci-app-les-chat/Makefile
+openwrt/package/luci-app-les-chat/files/etc/uci-defaults/80-luci-app-les-chat
+openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat
+openwrt/package/luci-app-les-chat/files/usr/share/luci/menu.d/luci-app-les-chat.json
+openwrt/package/luci-app-les-chat/files/usr/share/rpcd/acl.d/luci-app-les-chat.json
+openwrt/package/luci-app-les-chat/files/usr/share/ucitrack/luci-app-les-chat.json
+openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/chat.js
+openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/peers.js
+openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/settings.js
+openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/status.js
 openwrt/feed/install.sh.in
 openwrt/feed/README.md
 openwrt/offline/install.sh
@@ -36,6 +46,7 @@ for file in $required_files; do
 done
 
 grep -q 'opkg install' "$root/openwrt/README.md"
+grep -q 'luci-app-les-chat' "$root/openwrt/README.md"
 grep -q -- '--database' "$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
 grep -q -- '--discovery-interface' \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd"
@@ -43,10 +54,29 @@ grep -q '^PKG_LICENSE:=MIT$' "$root/openwrt/package/les-chatd/Makefile"
 grep -q '^PKG_LICENSE_FILES:=LICENSE$' "$root/openwrt/package/les-chatd/Makefile"
 grep -q '^PKG_BUILD_DEPENDS:=libevent2 libjson-c sqlite3$' \
 	"$root/openwrt/package/les-chatd/Makefile"
+grep -q '^PKG_NAME:=luci-app-les-chat$' \
+	"$root/openwrt/package/luci-app-les-chat/Makefile"
+grep -q 'PKGARCH:=all' "$root/openwrt/package/luci-app-les-chat/Makefile"
+grep -q '+les-chatd +luci-base' \
+	"$root/openwrt/package/luci-app-les-chat/Makefile"
+grep -q 'luci-app-les-chat' "$root/openwrt/feed/install.sh.in"
+grep -q 'luci-app-les-chat' "$root/openwrt/offline/install.sh"
+grep -Fq 'luci-app-les-chat_*_all.ipk' \
+	"$root/tools/collect_openwrt_runtime_ipks.sh"
 grep -q '@FEED_BASE_URL@' "$root/openwrt/feed/install.sh.in"
 grep -q '@OPENWRT_RELEASE@' "$root/openwrt/feed/install.sh.in"
 grep -q 'r28739-d9340319c6' "$root/openwrt/feed/install.sh.in"
 grep -q 'r28739-d9340319c6' "$root/openwrt/offline/install.sh"
+
+python3 -m json.tool \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/share/luci/menu.d/luci-app-les-chat.json" \
+	>/dev/null
+python3 -m json.tool \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/share/rpcd/acl.d/luci-app-les-chat.json" \
+	>/dev/null
+python3 -m json.tool \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/share/ucitrack/luci-app-les-chat.json" \
+	>/dev/null
 
 sh -n \
 	"$root/tools/build_openwrt_ipk.sh" \
@@ -60,6 +90,8 @@ sh -n \
 	"$root/openwrt/meshgate/les-chat-feed.init" \
 	"$root/openwrt/meshgate/les-chat-routing.init" \
 	"$root/openwrt/package/les-chatd/files/etc/init.d/les-chatd" \
-	"$root/openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat"
+	"$root/openwrt/package/les-chatd/files/etc/uci-defaults/99-les-chat" \
+	"$root/openwrt/package/luci-app-les-chat/files/etc/uci-defaults/80-luci-app-les-chat" \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"
 
 echo "OpenWrt package files are structurally valid"

@@ -1,0 +1,39 @@
+{
+	"luci-app-les-chat": {
+		"description": "Grant access to LES Mesh Chat status and peers",
+		"read": {
+			"ubus": {
+				"luci.leschat": [
+					"healthz",
+					"status",
+					"peers"
+				]
+			},
+			"uci": [
+				"les-chat"
+			]
+		}
+	},
+	"luci-app-les-chat-settings": {
+		"description": "Grant access to LES Mesh Chat settings",
+		"read": {
+			"uci": [
+				"les-chat"
+			]
+		},
+		"write": {
+			"uci": [
+				"les-chat"
+			],
+			"ubus": {
+				"service": [
+					"list",
+					"event"
+				]
+			},
+			"file": {
+				"/etc/init.d/les-chatd": [ "exec" ]
+			}
+		}
+	}
+}

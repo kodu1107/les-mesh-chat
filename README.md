@@ -39,9 +39,10 @@ Open <http://127.0.0.1:7777/> in a browser.
 
 ## OpenWrt packages
 
-The package definition, SDK build instructions, service configuration, and
-firewall notes are in [openwrt/README.md](openwrt/README.md). Raspberry Pi 4
-and Raspberry Pi 5 require separate IPKs:
+The package definition, SDK build instructions, service configuration, LuCI
+app, and firewall notes are in [openwrt/README.md](openwrt/README.md).
+Raspberry Pi 4 and Raspberry Pi 5 require separate daemon IPKs. The LuCI
+package is architecture-independent (`all`):
 
 - Raspberry Pi 4: `bcm27xx/bcm2711`, `aarch64_cortex-a72`
 - Raspberry Pi 5: `bcm27xx/bcm2712`, `aarch64_cortex-a76`
