@@ -15,6 +15,8 @@ openwrt/package/luci-app-les-chat/files/usr/share/luci/menu.d/luci-app-les-chat.
 openwrt/package/luci-app-les-chat/files/usr/share/rpcd/acl.d/luci-app-les-chat.json
 openwrt/package/luci-app-les-chat/files/usr/share/ucitrack/luci-app-les-chat.json
 openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/chat.js
+openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/common.js
+openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/les_chat.css
 openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/peers.js
 openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/settings.js
 openwrt/package/luci-app-les-chat/files/www/luci-static/resources/view/les_chat/status.js
@@ -59,6 +61,10 @@ grep -q '^PKG_NAME:=luci-app-les-chat$' \
 grep -q 'PKGARCH:=all' "$root/openwrt/package/luci-app-les-chat/Makefile"
 grep -q '+les-chatd +luci-base' \
 	"$root/openwrt/package/luci-app-les-chat/Makefile"
+grep -q 'call_messages' \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"
+grep -q 'call_send' \
+	"$root/openwrt/package/luci-app-les-chat/files/usr/libexec/rpcd/luci.leschat"
 grep -q 'luci-app-les-chat' "$root/openwrt/feed/install.sh.in"
 grep -q 'luci-app-les-chat' "$root/openwrt/offline/install.sh"
 grep -Fq 'luci-app-les-chat_*_all.ipk' \

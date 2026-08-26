@@ -51,6 +51,8 @@ define Package/luci-app-les-chat/install
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/les_chat
 	$(INSTALL_DATA) \
 		./files/www/luci-static/resources/view/les_chat/chat.js \
+		./files/www/luci-static/resources/view/les_chat/common.js \
+		./files/www/luci-static/resources/view/les_chat/les_chat.css \
 		./files/www/luci-static/resources/view/les_chat/peers.js \
 		./files/www/luci-static/resources/view/les_chat/settings.js \
 		./files/www/luci-static/resources/view/les_chat/status.js \

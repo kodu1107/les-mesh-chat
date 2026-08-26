@@ -128,6 +128,65 @@ call_peers() {
 	json_dump
 }
 
+call_messages() {
+	body=$(fetch_local /api/v1/messages)
+	if [ -n "$body" ] && json_load "$body"; then
+		if daemon_running; then
+			json_add_boolean running 1
+		else
+			json_add_boolean running 0
+		fi
+		json_dump
+		return
+	fi
+
+	json_init
+	json_add_boolean running 0
+	json_add_string error "daemon_unreachable"
+	json_add_array messages
+	json_close_array
+	json_add_int count 0
+	json_dump
+}
+
+call_send() {
+	input=$(cat)
+	if ! json_load "$input"; then
+		json_init
+		json_add_string error "invalid_json"
+		json_dump
+		return
+	fi
+
+	json_get_var body body
+	if [ -z "$body" ]; then
+		json_init
+		json_add_string error "message_empty"
+		json_dump
+		return
+	fi
+
+	json_init
+	json_add_string body "$body"
+	payload=$(json_dump)
+	port=$(daemon_port)
+	response=$(
+		wget -qO- -T 2 \
+			--post-data="$payload" \
+			--header='Content-Type: application/json' \
+			"http://127.0.0.1:${port}/api/v1/messages" 2>/dev/null || true
+	)
+
+	if [ -n "$response" ] && json_load "$response"; then
+		json_dump
+		return
+	fi
+
+	json_init
+	json_add_string error "daemon_unreachable"
+	json_dump
+}
+
 case "$1" in
 	list)
 		json_init
@@ -136,6 +195,10 @@ case "$1" in
 		json_add_object status
 		json_close_object
 		json_add_object peers
+		json_close_object
+		json_add_object messages
+		json_close_object
+		json_add_object send
 		json_close_object
 		json_dump
 		;;
@@ -149,6 +212,12 @@ case "$1" in
 				;;
 			peers)
 				call_peers
+				;;
+			messages)
+				call_messages
+				;;
+			send)
+				call_send
 				;;
 		esac
 		;;

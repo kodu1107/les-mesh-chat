@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>LES Mesh Chat LuCI mockup</title>
+	<link rel="stylesheet" href="../files/www/luci-static/resources/view/les_chat/les_chat.css">
+	<style>
+		body { margin: 0; font-family: system-ui, sans-serif; background: #e8e8e8; color: #222; }
+		.luci-shell { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
+		.luci-nav { background: #222; color: #ddd; padding: 16px; }
+		.luci-nav h1 { font-size: 0.9rem; color: #6cf; }
+		.luci-nav a { display: block; color: #ccc; text-decoration: none; padding: 6px 0; }
+		.luci-nav a.active { color: #6cf; }
+		.luci-main { padding: 16px; }
+		.grid { display: grid; gap: 24px; }
+		.phone { width: 390px; max-width: 100%; }
+		h2.section { margin: 24px 0 8px; }
+		.before { padding: 12px; border: 1px dashed #888; background: #fff; }
+	</style>
+</head>
+<body>
+<div class="luci-shell">
+	<nav class="luci-nav">
+		<h1>LuCI · Services</h1>
+		<a href="#chat" class="active">LES Mesh Chat</a>
+		<a>Chat</a>
+		<a>Peers</a>
+		<a>Status</a>
+		<a>Settings</a>
+	</nav>
+	<main class="luci-main">
+		<h2 class="section">After — native Chat (desktop)</h2>
+		<div class="les-chat-app">
+			<div class="les-chat-panel les-chat-stage">
+				<div class="les-chat-topbar">
+					<div>
+						<p class="les-chat-eyebrow">OpenMANET communications</p>
+						<h2 class="les-chat-title">LES Mesh Chat</h2>
+					</div>
+					<div class="les-chat-badge les-chat-badge-online">Online</div>
+				</div>
+				<div class="les-chat-identity">
+					<div class="les-chat-id-block">
+						<p class="les-chat-callsign">Bolt</p>
+						<p class="les-chat-node-id">Node ID: node-a</p>
+					</div>
+					<dl class="les-chat-metrics">
+						<div><dt>Peers</dt><dd>1</dd></div>
+						<div><dt>Daemon</dt><dd>Online</dd></div>
+					</dl>
+				</div>
+				<div class="les-chat-channel">
+					<div>
+						<p class="les-chat-eyebrow">Channel</p>
+						<strong>les-manet</strong>
+					</div>
+					<span class="les-chat-channel-name">Internal scroll — page length stays fixed</span>
+				</div>
+				<div class="les-chat-messages">
+					<article class="les-chat-msg les-chat-msg-local">
+						<header class="les-chat-msg-header">
+							<strong class="les-chat-msg-callsign">Bolt</strong>
+							<time class="les-chat-msg-time">오후 4:41:29</time>
+						</header>
+						<p class="les-chat-msg-body">상태 확인 바랍니다.</p>
+					</article>
+					<article class="les-chat-msg les-chat-msg-remote">
+						<header class="les-chat-msg-header">
+							<strong class="les-chat-msg-callsign">Kilo</strong>
+							<time class="les-chat-msg-time">오후 4:41:43</time>
+						</header>
+						<p class="les-chat-msg-body">수신했습니다. 경로 정상입니다.</p>
+					</article>
+					<article class="les-chat-msg les-chat-msg-local">
+						<header class="les-chat-msg-header">
+							<strong class="les-chat-msg-callsign">Bolt</strong>
+							<time class="les-chat-msg-time">오후 4:41:47</time>
+						</header>
+						<p class="les-chat-msg-body">긴 메시지는 말풍선 안에서 줄바꿈되고, 목록만 스크롤됩니다. 페이지 전체 높이는 늘어나지 않습니다.</p>
+					</article>
+				</div>
+				<div class="les-chat-composer">
+					<form class="les-chat-form" onsubmit="return false">
+						<input type="text" placeholder="Type a message" value="">
+						<button type="submit">Send</button>
+					</form>
+				</div>
+			</div>
+		</div>
+
+		<h2 class="section">After — native Chat (narrow / Pi)</h2>
+		<div class="phone">
+			<div class="les-chat-app">
+				<div class="les-chat-panel">
+					<div class="les-chat-topbar">
+						<div>
+							<p class="les-chat-eyebrow">OpenMANET communications</p>
+							<h2 class="les-chat-title">LES Mesh Chat</h2>
+						</div>
+						<div class="les-chat-badge les-chat-badge-reconnect">Reconnecting</div>
+					</div>
+					<div class="les-chat-identity">
+						<div class="les-chat-id-block">
+							<p class="les-chat-callsign">Bolt</p>
+							<p class="les-chat-node-id">Node ID: node-a</p>
+						</div>
+						<dl class="les-chat-metrics">
+							<div><dt>Peers</dt><dd>0</dd></div>
+							<div><dt>Daemon</dt><dd>Reconnecting</dd></div>
+						</dl>
+					</div>
+					<div class="les-chat-messages" style="min-height:220px">
+						<div class="les-chat-empty">
+							<strong>Cannot reach the chat service</strong>
+							<p>LuCI could not read the local daemon. Wait a few seconds.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<h2 class="section">After — Peers empty / stopped</h2>
+		<div class="les-chat-app">
+			<div class="les-chat-panel">
+				<div class="les-chat-topbar">
+					<div>
+						<p class="les-chat-eyebrow">OpenMANET communications</p>
+						<h2 class="les-chat-title">Peers</h2>
+					</div>
+					<div class="les-chat-badge les-chat-badge-stopped">Stopped</div>
+				</div>
+				<div class="les-chat-identity">
+					<div class="les-chat-id-block">
+						<p class="les-chat-callsign">Bolt</p>
+						<p class="les-chat-node-id">Node ID: node-a</p>
+					</div>
+					<dl class="les-chat-metrics">
+						<div><dt>Peers</dt><dd>0</dd></div>
+						<div><dt>Daemon</dt><dd>Stopped</dd></div>
+					</dl>
+				</div>
+				<div class="les-chat-empty">
+					<strong>Chat service is stopped</strong>
+					<p>Peers cannot announce while les-chatd is down. Start the service in Settings.</p>
+				</div>
+			</div>
+		</div>
+
+		<h2 class="section">Before — iframe Chat</h2>
+		<div class="before">
+			<p>LuCI heading + “Open chat in a new tab” + iframe of <code>:7777</code>. The inner page is a second app (dark standalone UI) nested in LuCI, so chrome, fonts, and scrolling compete. 70vh iframe still lets long threads feel detached from Services.</p>
+		</div>
+	</main>
+</div>
+</body>
+</html>

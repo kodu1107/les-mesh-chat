@@ -1,17 +1,25 @@
 {
 	"luci-app-les-chat": {
-		"description": "Grant access to LES Mesh Chat status and peers",
+		"description": "Grant access to LES Mesh Chat status, peers, and chat",
 		"read": {
 			"ubus": {
 				"luci.leschat": [
 					"healthz",
 					"status",
-					"peers"
+					"peers",
+					"messages"
 				]
 			},
 			"uci": [
 				"les-chat"
 			]
+		},
+		"write": {
+			"ubus": {
+				"luci.leschat": [
+					"send"
+				]
+			}
 		}
 	},
 	"luci-app-les-chat-settings": {

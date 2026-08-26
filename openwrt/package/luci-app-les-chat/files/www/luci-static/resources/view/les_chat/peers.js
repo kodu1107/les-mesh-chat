@@ -2,102 +2,101 @@
 'require view';
 'require rpc';
 'require poll';
+'require view.les_chat.common as common';
+
+const callStatus = rpc.declare({
+	object: 'luci.leschat',
+	method: 'status'
+});
 
 const callPeers = rpc.declare({
 	object: 'luci.leschat',
 	method: 'peers'
 });
 
-function formatLastSeen(ms) {
-	const value = Number(ms);
-	if (!isFinite(value) || value <= 0)
-		return '-';
+function renderList(status, peers, rpcError) {
+	const running = common.isTrue(status.running);
+	const items = Array.isArray(peers.peers) ? peers.peers : [];
 
-	const when = new Date(value);
-	if (isNaN(when.getTime()))
-		return '-';
+	if (rpcError)
+		return common.empty(
+			_('Cannot read peers'),
+			_('LuCI lost contact with the local daemon. Wait a few seconds or check /etc/init.d/les-chatd status.')
+		);
 
-	const delta = Date.now() - value;
-	let relative = when.toLocaleString();
-	if (delta >= 0 && delta < 60000)
-		relative = _('%d s ago').format(Math.floor(delta / 1000));
-	else if (delta >= 0 && delta < 3600000)
-		relative = _('%d min ago').format(Math.floor(delta / 60000));
+	if (!running)
+		return common.empty(
+			_('Chat service is stopped'),
+			_('Peers cannot announce while les-chatd is down. Start the service in Settings.')
+		);
 
-	return relative;
-}
+	if (items.length === 0)
+		return common.empty(
+			_('No peers online'),
+			_('No announce seen in the last 20 seconds. Wait up to 10 seconds, then check that discovery_interface is br-ahwlan on MeshGate and that UDP 7777 is allowed on ahwlan.')
+		);
 
-function renderPeers(data) {
-	const result = data || {};
-	const peers = Array.isArray(result.peers) ? result.peers : [];
-	const running = result.running === true || result.running === 1;
-
-	const header = E('div', {
-		'class': running ? 'alert-message success' : 'alert-message warning'
-	}, [
-		running
-			? _('Online peers: %d').format(peers.length)
-			: _('The LES Mesh Chat daemon is not running.')
-	]);
-
-	if (!running && result.error)
-		header.appendChild(E('div', {}, [ result.error ]));
-
-	if (peers.length === 0) {
-		return E('div', {}, [
-			header,
-			E('p', {}, [ _('No peers have announced within the last 20 seconds.') ])
-		]);
-	}
-
-	const table = E('table', { 'class': 'table' }, [
-		E('tr', { 'class': 'tr table-titles' }, [
-			E('th', { 'class': 'th' }, [ _('Callsign') ]),
-			E('th', { 'class': 'th' }, [ _('Node ID') ]),
-			E('th', { 'class': 'th' }, [ _('IPv4 address') ]),
-			E('th', { 'class': 'th' }, [ _('HTTP port') ]),
-			E('th', { 'class': 'th' }, [ _('App version') ]),
-			E('th', { 'class': 'th' }, [ _('Last seen') ])
-		])
-	]);
-
-	peers.forEach(function(peer) {
-		table.appendChild(E('tr', { 'class': 'tr' }, [
-			E('td', { 'class': 'td' }, [ peer.callsign || '-' ]),
-			E('td', { 'class': 'td' }, [ peer.node_id || '-' ]),
-			E('td', { 'class': 'td' }, [ peer.address || '-' ]),
-			E('td', { 'class': 'td' }, [ peer.http_port != null ? String(peer.http_port) : '-' ]),
-			E('td', { 'class': 'td' }, [ peer.app_version || '-' ]),
-			E('td', { 'class': 'td' }, [ formatLastSeen(peer.last_seen_ms) ])
+	const cards = E('div', { 'class': 'les-chat-cards les-chat-scroll' });
+	items.forEach(function(peer) {
+		cards.appendChild(E('div', { 'class': 'les-chat-card' }, [
+			E('strong', {}, [ peer.callsign || '—' ]),
+			E('span', {}, [ _('Node ID') + ': ' + (peer.node_id || '—') ]),
+			E('span', {}, [
+				(peer.address || '—') + ':' +
+				(peer.http_port != null ? String(peer.http_port) : '—')
+			]),
+			E('span', {}, [ _('Version') + ': ' + (peer.app_version || '—') ]),
+			E('span', {}, [ _('Last seen') + ': ' + common.formatLastSeen(peer.last_seen_ms) ])
 		]));
 	});
-
-	return E('div', {}, [ header, table ]);
+	return cards;
 }
 
 return view.extend({
-	render: function() {
-		const container = E('div', { 'id': 'les-chat-peers' }, [
-			E('em', {}, [ _('Loading…') ])
+	load: function() {
+		common.loadCss();
+		return Promise.all([
+			callStatus().catch(function(error) { return { rpcError: error }; }),
+			callPeers().catch(function(error) { return { rpcError: error, peers: [] }; })
 		]);
+	},
 
-		poll.add(L.bind(function() {
-			return callPeers().then(function(data) {
-				L.dom.content(container, renderPeers(data));
-			}).catch(function(error) {
-				L.dom.content(container, E('div', {
-					'class': 'alert-message danger'
-				}, [ _('Unable to read peers: %s').format(error.message || error) ]));
+	render: function(data) {
+		const container = E('div', { 'id': 'les-chat-peers-body' });
+		const initialStatus = data[0] || {};
+		const initialPeers = data[1] || {};
+
+		const paint = function(status, peers) {
+			const rpcError = status.rpcError || peers.rpcError;
+			const body = E('div', { 'class': 'les-chat-stage' }, [
+				E('p', { 'class': 'les-chat-section-title' }, [
+					_('UDP announces in the last 20 seconds')
+				]),
+				renderList(status, peers, rpcError)
+			]);
+			L.dom.content(container, common.shell({
+				title: _('Peers'),
+				status: status,
+				peerCount: Array.isArray(peers.peers) ? peers.peers.length : 0,
+				rpcError: rpcError,
+				body: body
+			}));
+		};
+
+		paint(initialStatus, initialPeers);
+
+		poll.add(function() {
+			if (!document.getElementById('les-chat-peers-body'))
+				return Promise.resolve();
+			return Promise.all([
+				callStatus().catch(function(error) { return { rpcError: error }; }),
+				callPeers().catch(function(error) { return { rpcError: error, peers: [] }; })
+			]).then(function(next) {
+				paint(next[0] || {}, next[1] || {});
 			});
-		}, this), 5);
+		}, 5);
 
-		return E('div', {}, [
-			E('h2', {}, [ _('LES Mesh Chat Peers') ]),
-			E('div', { 'class': 'cbi-map-descr' }, [
-				_('Nodes discovered over UDP in the last 20 seconds.')
-			]),
-			container
-		]);
+		return container;
 	},
 
 	handleSaveApply: null,
